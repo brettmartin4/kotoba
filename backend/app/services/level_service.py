@@ -3,7 +3,7 @@ from typing import Dict, List, Tuple
 from sqlalchemy import case, func, select
 from sqlalchemy.engine import Connection
 
-from app.models import source_items, study_progress
+from app.models import source_items, sources, study_progress
 
 GURU_STAGE_THRESHOLD = 5  # srs_stage >= 5 is Guru 1 or higher
 
@@ -94,3 +94,28 @@ def lessons_available_in_source(conn: Connection, source_id: int, current_unlock
             study_progress.c.srs_stage == 0,
         )
     ).scalar()
+
+
+def get_sources_overview(conn: Connection) -> List[dict]:
+    """List of sources with their per-level progress and lesson-eligible-item count.
+    Shared by the sources API, the dashboard, and the lessons-available endpoint."""
+    source_rows = conn.execute(select(sources).order_by(sources.c.id)).mappings().all()
+    overview = []
+    for source in source_rows:
+        levels, current_level = get_source_levels(conn, source["id"])
+        overview.append(
+            {
+                "id": source["id"],
+                "source_key": source["source_key"],
+                "display_name": source["display_name"],
+                "is_active": source["is_active"],
+                "created_at": source["created_at"],
+                "last_imported_at": source["last_imported_at"],
+                "current_level": current_level,
+                "levels": levels,
+                "lessons_available_in_source": lessons_available_in_source(
+                    conn, source["id"], current_level
+                ),
+            }
+        )
+    return overview

@@ -1,36 +1,14 @@
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Set
+from typing import Dict, Optional
 
 from sqlalchemy import select, update
 from sqlalchemy.engine import Connection, Engine
 
 from app.core.config import settings
-from app.models import review_attempts, source_items, sources, study_progress, vocab_items
-from app.services.level_service import get_source_levels, lessons_available_in_source
-from app.services.time_utils import start_of_local_day_utc, today_local_date, utc_to_local_date
-
-
-def get_sources_overview(conn: Connection) -> List[dict]:
-    source_rows = conn.execute(select(sources).order_by(sources.c.id)).mappings().all()
-    overview = []
-    for source in source_rows:
-        levels, current_level = get_source_levels(conn, source["id"])
-        overview.append(
-            {
-                "id": source["id"],
-                "source_key": source["source_key"],
-                "display_name": source["display_name"],
-                "is_active": source["is_active"],
-                "created_at": source["created_at"],
-                "last_imported_at": source["last_imported_at"],
-                "current_level": current_level,
-                "levels": levels,
-                "lessons_available_in_source": lessons_available_in_source(
-                    conn, source["id"], current_level
-                ),
-            }
-        )
-    return overview
+from app.models import review_attempts, review_sessions, sources, study_progress, vocab_items
+from app.services.lesson_service import eligible_lesson_item_ids, lessons_learned_today
+from app.services.level_service import get_sources_overview
+from app.services.time_utils import today_local_date, utc_to_local_date
 
 
 def rename_source(conn: Connection, source_id: int, display_name: str) -> Optional[dict]:
@@ -44,26 +22,6 @@ def rename_source(conn: Connection, source_id: int, display_name: str) -> Option
     )
     updated = conn.execute(select(sources).where(sources.c.id == source_id)).mappings().first()
     return dict(updated)
-
-
-def _eligible_lesson_item_ids(conn: Connection, overview: List[dict]) -> Set[int]:
-    eligible: Set[int] = set()
-    for source in overview:
-        current_level = source["current_level"]
-        if current_level <= 0:
-            continue
-        rows = conn.execute(
-            select(source_items.c.item_id)
-            .select_from(source_items.join(study_progress, source_items.c.item_id == study_progress.c.item_id))
-            .where(
-                source_items.c.source_id == source["id"],
-                source_items.c.is_active.is_(True),
-                source_items.c.source_level <= current_level,
-                study_progress.c.srs_stage == 0,
-            )
-        ).all()
-        eligible.update(r[0] for r in rows)
-    return eligible
 
 
 def _reviews_available_count(conn: Connection, now_naive_utc: datetime) -> int:
@@ -91,18 +49,14 @@ def _new_items_last_7_days(conn: Connection, now_naive_utc: datetime) -> int:
     return len(rows)
 
 
-def _lessons_learned_today(conn: Connection, now_aware_utc: datetime) -> int:
-    cutoff = start_of_local_day_utc(now_aware_utc)
-    rows = conn.execute(
-        select(study_progress.c.item_id).where(
-            study_progress.c.learned_at.is_not(None), study_progress.c.learned_at >= cutoff
-        )
-    ).all()
-    return len(rows)
-
-
 def _compute_daily_streak(conn: Connection) -> int:
-    rows = conn.execute(select(review_attempts.c.created_at)).all()
+    # Only true review activity counts toward the streak -- lesson_quiz sessions
+    # must never inflate it, so this joins back to review_sessions and filters.
+    rows = conn.execute(
+        select(review_attempts.c.created_at)
+        .select_from(review_attempts.join(review_sessions, review_attempts.c.session_id == review_sessions.c.id))
+        .where(review_sessions.c.session_type == "review")
+    ).all()
     local_dates = {utc_to_local_date(r[0]) for r in rows}
     if not local_dates:
         return 0
@@ -126,16 +80,16 @@ def get_dashboard(engine: Engine) -> dict:
         now_naive_utc = now_aware_utc.replace(tzinfo=None)
 
         overview = get_sources_overview(conn)
-        eligible_ids = _eligible_lesson_item_ids(conn, overview)
+        eligible_ids = eligible_lesson_item_ids(conn, overview)
 
-        lessons_learned_today = _lessons_learned_today(conn, now_aware_utc)
-        remaining_cap = max(0, settings.daily_lesson_cap - lessons_learned_today)
+        learned_today = lessons_learned_today(conn, now_aware_utc)
+        remaining_cap = max(0, settings.daily_lesson_cap - learned_today)
         lessons_available = min(len(eligible_ids), remaining_cap)
 
         return {
             "lessons_available": lessons_available,
             "daily_lesson_cap": settings.daily_lesson_cap,
-            "lessons_learned_today": lessons_learned_today,
+            "lessons_learned_today": learned_today,
             "reviews_available": _reviews_available_count(conn, now_naive_utc),
             "srs_distribution": _srs_distribution(conn),
             "daily_streak": _compute_daily_streak(conn),

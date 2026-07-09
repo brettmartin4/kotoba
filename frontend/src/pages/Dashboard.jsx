@@ -4,7 +4,7 @@ import SourceLevelCard from '../components/SourceLevelCard'
 import SrsDistribution from '../components/SrsDistribution'
 import './Dashboard.css'
 
-function Dashboard() {
+function Dashboard({ onStartLessons }) {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
 
@@ -37,16 +37,21 @@ function Dashboard() {
       <h1>KotobaForge</h1>
 
       <div className="dashboard-actions">
-        <button className="action-button" type="button">
+        <button
+          className="action-button"
+          type="button"
+          onClick={onStartLessons}
+          disabled={data.lessons_available === 0}
+        >
           Lessons
           <span className="action-count">{data.lessons_available}</span>
         </button>
-        <button className="action-button" type="button">
+        <button className="action-button" type="button" disabled>
           Reviews
           <span className="action-count">{data.reviews_available}</span>
         </button>
       </div>
-      <p className="coming-soon-note">Lessons and reviews aren't implemented yet — counts only.</p>
+      <p className="coming-soon-note">Reviews aren't implemented yet — counts only.</p>
 
       <section>
         <h2>Sources</h2>

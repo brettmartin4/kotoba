@@ -144,3 +144,26 @@ def test_daily_streak_is_zero_when_broken_by_a_gap(engine):
     result = get_dashboard(engine)
 
     assert result["daily_streak"] == 0
+
+
+def test_lesson_quiz_activity_does_not_count_toward_daily_streak(engine):
+    with engine.begin() as conn:
+        session_id = conn.execute(
+            insert(review_sessions).values(session_type="lesson_quiz")
+        ).inserted_primary_key[0]
+        item_id = _make_item(conn, "a", "a", srs_stage=0)
+        conn.execute(
+            insert(review_attempts).values(
+                session_id=session_id,
+                item_id=item_id,
+                prompt_type="meaning",
+                submitted_answer="x",
+                normalized_answer="x",
+                is_correct=True,
+                created_at=_now_naive(),
+            )
+        )
+
+    result = get_dashboard(engine)
+
+    assert result["daily_streak"] == 0

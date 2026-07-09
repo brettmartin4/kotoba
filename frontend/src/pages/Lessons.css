@@ -1,0 +1,113 @@
+.lessons-screen,
+.lesson-screen {
+  max-width: 640px;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+}
+
+.back-link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+}
+
+.lessons-screen .source-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.lessons-screen .source-card {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.lesson-card,
+.quiz-card {
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  margin: 1rem 0;
+  text-align: center;
+}
+
+.lesson-progress {
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.lesson-kana {
+  color: var(--text);
+}
+
+.lesson-examples,
+.lesson-notes {
+  text-align: left;
+  margin-top: 1rem;
+}
+
+.lesson-example {
+  margin-bottom: 0.75rem;
+}
+
+.lesson-notes {
+  font-style: italic;
+}
+
+.quiz-label {
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.quiz-card form {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.quiz-card input[type='text'] {
+  font-size: 1.1rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  min-width: 220px;
+  font-family: inherit;
+}
+
+.quiz-feedback {
+  margin-top: 1rem;
+}
+
+.quiz-feedback-correct {
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+.quiz-feedback-incorrect {
+  color: #c0392b;
+  font-weight: 600;
+}
+
+.primary-button {
+  padding: 0.75rem 1.5rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  font-family: inherit;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  background: var(--accent-bg);
+  color: var(--text-h);
+  cursor: pointer;
+  margin-top: 1rem;
+}
+
+.primary-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

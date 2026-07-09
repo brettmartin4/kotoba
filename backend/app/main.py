@@ -5,6 +5,7 @@ from sqlalchemy.engine import Engine
 
 from app.api.routes.dashboard import router as dashboard_router
 from app.api.routes.imports import router as imports_router
+from app.api.routes.lessons import router as lessons_router
 from app.api.routes.sources import router as sources_router
 from app.core.db import get_engine
 
@@ -20,6 +21,7 @@ app.add_middleware(
 app.include_router(imports_router)
 app.include_router(sources_router)
 app.include_router(dashboard_router)
+app.include_router(lessons_router)
 
 
 @app.get("/api/health")

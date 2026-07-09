@@ -3,7 +3,8 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy.engine import Engine
 
 from app.core.db import get_engine
-from app.services.dashboard_service import get_sources_overview, rename_source
+from app.services.dashboard_service import rename_source
+from app.services.level_service import get_sources_overview
 
 router = APIRouter(prefix="/api/sources", tags=["sources"])
 
