@@ -248,9 +248,11 @@ The `items` sheet must include these columns:
 | `romaji` | Yes | Romaji display for lessons only. Never accepted in reviews. |
 | `meanings` | Yes | Semicolon-separated accepted English meanings. |
 | `part_of_speech` | Yes | Noun, verb, adjective, expression, etc. |
-| `examples` | No | Paired Japanese/English examples. Strongly recommended. |
+| `example_japanese` | No | Semicolon-separated Japanese example sentences. Strongly recommended. |
+| `example_kana` | No | Semicolon-separated kana readings for each example, paired by position with `example_japanese`. |
+| `example_english` | No | Semicolon-separated English translations, paired by position with `example_japanese`. |
 | `similar_items` | No | Plain-text similar words/phrases. |
-| `tags` | No | Semicolon-separated optional tags. |
+| `source_note` | No | Free-text note about this item's use in this source. |
 
 ### 7.5 Optional Future Columns
 
@@ -277,19 +279,23 @@ All listed meanings are treated equally. There is no required primary meaning in
 
 ### 7.7 Example Format
 
-Examples should be stored in one `examples` cell as paired Japanese/English examples.
+Examples are stored across three separate columns: `example_japanese`, `example_kana`, and `example_english`.
 
-Recommended V1 format:
+Each column may contain multiple semicolon-separated values, and examples are paired by position across the three columns.
+
+Example:
 
 ```text
-確認してください。 => Please check it.; メールを確認しました。 => I checked the email.
+example_japanese: 確認してください。; メールを確認しました。
+example_kana:     かくにんしてください。; メールをかくにんしました。
+example_english:  Please check it.; I checked the email.
 ```
 
 Rules:
 
-1. Separate the Japanese sentence from the English translation using `=>`.
-2. Separate multiple example pairs using semicolons.
-3. Each Japanese example should have a matching English translation.
+1. Separate multiple example entries within a column using semicolons.
+2. `example_japanese`, `example_kana`, and `example_english` must have matching counts whenever any of them are present for a row.
+3. The importer must reject (block with a clear error) a row where the counts do not match.
 4. Examples are strongly recommended but not required.
 
 ### 7.8 Similar Items Format
@@ -338,21 +344,21 @@ The importer must validate:
 5. `item_type` is either `word` or `phrase`.
 6. `meanings` contains at least one valid meaning.
 7. `japanese` and `kana` are valid Japanese text fields.
-8. `romaji` exists but is not used for answer validation.
-9. Example pairs are correctly formatted if present.
+8. `romaji` is present (required) but is never used for answer validation; it is for lesson display only.
+9. `example_japanese`, `example_kana`, and `example_english` have matching semicolon-separated counts whenever any of them are present.
 10. Source can be derived from filename.
 
 ### 8.4 Duplicate Detection
 
-Potential duplicates should be detected if any of the following match an existing item:
+V1 has no stable per-row identity key in the `.xlsx` format (no ID column). Identity is inferred from the normalized `japanese` and `kana` fields on each import:
 
-1. Main Japanese display form.
-2. Kana form.
-3. Additional accepted Japanese form, if supported later.
+1. **Exact match on normalized `japanese` + `kana`:** treated as the same canonical item. No merge review needed; the row is applied as an update/refresh of the existing item (subject to the changed-item approval flow in §8.7).
+2. **Match on `japanese` only, or `kana` only (not both):** treated as a possible duplicate/update requiring user review through the duplicate merge UI. This also covers kana-only homophone collisions, since Japanese has many homophones and an automatic merge would be unsafe.
+3. **No match on either `japanese` or `kana`:** treated as a new item.
 
 Duplicate detection must **not** be based on English meaning.
 
-Because Japanese has homophones, kana-only matches should be treated as potential duplicates requiring confirmation rather than automatically merged.
+This is a known V1 limitation: if a user edits both the `japanese` and `kana` fields for an existing row enough that neither matches any existing item, the importer will treat it as a brand-new item rather than an edit, and the old item/progress will remain as a separate entry. This is acceptable for V1; a stable row ID is a candidate V2 improvement.
 
 ### 8.5 Duplicate Merge UI
 
@@ -374,10 +380,10 @@ Right panel:
 - New source.
 - New source-level placement preview.
 
-Actions:
+Actions (mostly all-or-nothing for V1; per-meaning/per-example checkbox selection is deferred to V2):
 
-1. Merge meanings and examples.
-2. Add source association only.
+1. Merge all non-duplicate meanings and examples into the existing canonical item, and add the new source relationship, while preserving existing SRS progress.
+2. Add source association only, without merging meanings/examples.
 3. Skip imported item.
 4. Mark as separate item only if the user explicitly confirms that it is not the same word/phrase.
 
@@ -392,11 +398,13 @@ If the same item appears in multiple sources:
 
 ### 8.7 Changed Items
 
-If an existing source file changes an item’s meanings, examples, kana, or metadata:
+If a row's normalized `japanese` + `kana` still matches an existing canonical item (per §8.4, rule 1) but other fields (meanings, examples, part of speech, romaji, etc.) differ from the stored values:
 
 1. The app should ask for approval before applying the change.
 2. Existing progress must be preserved.
 3. Personal synonyms, notes, mnemonics, and review history must be preserved.
+
+If a row matches on only `japanese` or only `kana`, it is not treated as a simple "changed item" — it goes through the duplicate merge UI (§8.4 rule 2, §8.5) instead, since the app cannot be sure it is the same item.
 
 ### 8.8 Removed Items
 
@@ -453,6 +461,8 @@ Level N+1 unlocks when at least **90%** of Level N items have reached **Guru 1 o
 
 For a 20-item level, 18 items must be Guru 1 or higher.
 
+Items whose source-item association is marked inactive (§8.8) are excluded from both the level's denominator and the numerator of this calculation — they do not count as part of the level for unlock purposes at all.
+
 ### 9.4 No Global Level
 
 The app must not show a global level.
@@ -485,6 +495,7 @@ A lesson is available when:
 1. The item belongs to an unlocked source level.
 2. The item has not yet been learned.
 3. The user has not exceeded the daily new-item cap.
+4. The item's source-item association is active (inactive/removed source items are excluded from lesson availability).
 
 ### 10.2 Lesson Batch Size
 
@@ -492,7 +503,7 @@ Each lesson batch should contain **5 new items**.
 
 ### 10.3 Daily New-Item Cap
 
-The default daily cap is **10 new items per day**.
+The default daily cap is **10 new items per day**, resetting at local midnight using the user's system local time. It is not a rolling 24-hour window.
 
 The app must not block lessons due to review backlog.
 
@@ -732,27 +743,25 @@ If both prompt types are answered correctly during a review session:
 
 ### 13.4 Incorrect Review Behavior
 
-If either prompt type is answered incorrectly:
+Each review item has two prompts (meaning and Japanese production). The item advances one SRS stage only if both prompts are answered correctly in that review. If either prompt is wrong, the whole item counts as incorrect for that review session:
 
 1. The item review is considered failed.
-2. The SRS stage decreases according to the penalty logic.
+2. The SRS stage decreases by exactly one stage, never below stage 1 (Apprentice 1).
 3. The item is rescheduled based on its new stage.
 4. The item cannot advance during that review session.
 
-Recommended penalty logic:
+V1 demotion logic:
 
 ```text
-incorrect_adjustment_count = ceil(number_of_full_wrong_answers / 2)
-
-if current_srs_stage >= 5:
-    penalty_factor = 2
+if any prompt for the item was answered incorrectly this review session:
+    new_srs_stage = max(1, current_srs_stage - 1)
 else:
-    penalty_factor = 1
-
-new_srs_stage = max(1, current_srs_stage - incorrect_adjustment_count * penalty_factor)
+    new_srs_stage = current_srs_stage + 1
 ```
 
-Near-typo warnings do not count as full wrong answers unless the answer is ultimately submitted as incorrect.
+Prompt-level attempts (which specific prompt was right/wrong) are still recorded per-prompt in review history for statistics, but SRS stage movement itself is calculated once per item per review session, not per prompt.
+
+Near-typo warnings do not count as a wrong answer unless the answer is ultimately submitted as incorrect.
 
 ### 13.5 Burned Items
 
@@ -946,7 +955,7 @@ Search should cover:
 5. Notes.
 6. Mnemonics.
 7. Source.
-8. Tags.
+8. Source note.
 9. Similar items.
 
 Filters should include:
@@ -1736,7 +1745,7 @@ Implement the lesson system. Lessons should be source-selectable, source-level a
 ### 27.6 Review/SRS Prompt
 
 ```text
-Implement the review system and SRS engine. Reviews become available by next_review_at. Each item requires both a Japanese-to-English meaning prompt and an English-to-Japanese production prompt. The item advances only if both are correct in the same session. Incorrect answers demote the SRS stage using the requirements document's penalty logic. Burned items no longer appear in normal reviews. Add tests for correct advancement, incorrect demotion, burned behavior, and review scheduling.
+Implement the review system and SRS engine. Reviews become available by next_review_at. Each item requires both a Japanese-to-English meaning prompt and an English-to-Japanese production prompt. The item advances one SRS stage only if both are correct in the same session; if either is wrong, the item demotes by exactly one SRS stage (never below Apprentice 1). Burned items no longer appear in normal reviews. Add tests for correct advancement, incorrect demotion, burned behavior, and review scheduling.
 ```
 
 ### 27.7 Answer Checking Prompt

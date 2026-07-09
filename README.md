@@ -141,6 +141,39 @@ KotobaForge aims to be:
 * Simple enough to vibe-code and iterate on
 * Open enough for future expansion
 
+## Development Setup
+
+This repo currently has the Phase 0 scaffold: a FastAPI backend, a React + Vite frontend, and a wiring health check between them. The import/lesson/review features described above are not implemented yet.
+
+### Backend
+
+```bash
+cd backend
+python -m venv .venv
+.venv\Scripts\activate      # Windows
+pip install -r requirements.txt
+python -m uvicorn app.main:app --reload --port 8000
+```
+
+Health check: `http://localhost:8000/api/health`
+
+Run tests:
+
+```bash
+cd backend
+python -m pytest
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173`. The dev server proxies `/api` requests to the backend on port 8000, so run both at the same time to see the health check succeed on the page.
+
 ## Current Vision
 
 KotobaForge is not meant to replace dictionaries, grammar guides, or full Japanese learning platforms. It is a focused tool for one specific job:

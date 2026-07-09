@@ -68,12 +68,12 @@ Implement the Excel `.xlsx` import pipeline for Phase 1.
 Requirements:
 - One Excel file per source.
 - Filename determines source identity.
-- Required columns: item_type, japanese, kana, meanings, part_of_speech.
-- Recommended columns: romaji, example_japanese, example_kana, example_english, similar_items, source_note.
-- Semicolon-separated lists.
+- Required columns: item_type, japanese, kana, romaji, meanings, part_of_speech. `romaji` is for lesson display only and must never be accepted as a Japanese review answer.
+- Optional columns: example_japanese, example_kana, example_english, similar_items, source_note.
+- Semicolon-separated lists. `example_japanese`, `example_kana`, and `example_english` are paired by position and must have matching counts whenever any of them are present.
 - Store progress and personal data only in SQLite.
 - Validate missing columns and missing row fields.
-- Detect duplicates by written form or reading, not meaning.
+- Detect duplicates using exact normalized japanese+kana match as the same canonical item; a match on japanese only or kana only is a possible duplicate requiring review; a new japanese+kana pair is a new item. Do not detect duplicates by meaning.
 - Do not delete progress when a word disappears from a source file; mark source membership inactive.
 
 Use `wordbanks/work.xlsx` as the first test file. Write and run tests for parsing and validation.
@@ -90,7 +90,7 @@ When a duplicate is detected, the app should stage a merge decision rather than 
 
 Merged duplicates must:
 - share global study progress
-- merge meanings and examples when approved
+- merge all non-duplicate meanings and examples when approved (V1 merge is mostly all-or-nothing; per-meaning/per-example selection is a V2 feature)
 - add source membership for the new source
 - add the item to the new source's next available level slot
 
@@ -112,7 +112,7 @@ Build the backend endpoints and frontend dashboard needed to show:
 - reviews available
 - SRS distribution
 
-Implement source-specific 20-item level batches and 90% Guru-or-higher level progression. There is no global level. Existing Guru/Burned duplicate items count immediately in every source they belong to.
+Implement source-specific 20-item level batches and 90% Guru-or-higher level progression. There is no global level. Existing Guru/Burned duplicate items count immediately in every source they belong to. Inactive source-item associations are excluded from lesson availability, level denominators, and the 90% Guru calculation.
 
 Run relevant tests and frontend build checks.
 ```
@@ -127,7 +127,7 @@ Implement Phase 3.
 Lessons must:
 - be selected by source
 - introduce five new items at a time
-- respect a daily cap of ten new items
+- respect a daily cap of ten new items, resetting at local midnight in the user's system local time (not a rolling 24-hour window)
 - show item type, Japanese, kana, romaji, meanings, part of speech, examples, user notes, and mnemonics where available
 - use pink theme for words and blue theme for phrases
 - end with a required lesson quiz
@@ -148,8 +148,8 @@ Implement Phase 4 review engine and answer checking.
 Reviews must:
 - show due items only
 - ask both Japanese→English and English→Japanese for each item
-- advance only if both prompts are correct
-- mark the item wrong if either prompt is wrong
+- advance one SRS stage only if both prompts are correct
+- mark the item wrong if either prompt is wrong, demoting it by exactly one SRS stage (never below Apprentice 1); track prompt-level attempts in review history, but compute SRS movement once per item per review session
 - prevent self-grading
 - accept kana or kanji for Japanese answers, but reject romaji
 - accept English meanings case-insensitively and punctuation-insensitively

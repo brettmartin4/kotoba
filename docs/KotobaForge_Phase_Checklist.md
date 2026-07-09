@@ -4,18 +4,18 @@ Use this as the master implementation checklist for Claude Code.
 
 ## Phase 0 — Project scaffold
 
-- [ ] Create backend folder.
-- [ ] Create frontend folder.
-- [ ] Create docs folder.
-- [ ] Create wordbanks folder.
-- [ ] Configure Python environment.
-- [ ] Configure FastAPI app.
-- [ ] Configure React + Vite app.
-- [ ] Add SQLite config.
-- [ ] Add README with run commands.
-- [ ] Add basic health endpoint.
-- [ ] Verify backend starts.
-- [ ] Verify frontend starts.
+- [x] Create backend folder.
+- [x] Create frontend folder.
+- [x] Create docs folder.
+- [x] Create wordbanks folder.
+- [x] Configure Python environment.
+- [x] Configure FastAPI app.
+- [x] Configure React + Vite app.
+- [x] Add SQLite config.
+- [x] Add README with run commands.
+- [x] Add basic health endpoint.
+- [x] Verify backend starts.
+- [x] Verify frontend starts.
 - [ ] Commit scaffold.
 
 ## Phase 1 — Database and Excel import
