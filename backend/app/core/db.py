@@ -1,17 +1,37 @@
-import sqlite3
+from pathlib import Path
+from typing import Optional
 
-from .config import settings
+from sqlalchemy import create_engine, event
+from sqlalchemy.engine import Engine
+
+from app.core.config import settings
+from app.models import metadata
 
 
-def get_connection() -> sqlite3.Connection:
-    settings.db_path.parent.mkdir(parents=True, exist_ok=True)
-    return sqlite3.connect(settings.db_path)
+def create_sqlite_engine(db_path: Path) -> Engine:
+    db_path = Path(db_path)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    engine = create_engine(f"sqlite:///{db_path}", future=True)
+
+    @event.listens_for(engine, "connect")
+    def _enable_foreign_keys(dbapi_connection, _connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+    return engine
 
 
-def check_connection() -> bool:
-    conn = get_connection()
-    try:
-        conn.execute("SELECT 1")
-        return True
-    finally:
-        conn.close()
+def init_db(engine: Engine) -> None:
+    metadata.create_all(engine)
+
+
+_engine: Optional[Engine] = None
+
+
+def get_engine() -> Engine:
+    global _engine
+    if _engine is None:
+        _engine = create_sqlite_engine(settings.db_path)
+        init_db(_engine)
+    return _engine

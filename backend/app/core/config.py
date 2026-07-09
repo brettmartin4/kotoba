@@ -14,3 +14,7 @@ class Settings:
 
 
 settings = Settings()
+
+
+def get_wordbank_folder() -> Path:
+    return settings.wordbank_folder

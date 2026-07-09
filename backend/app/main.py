@@ -1,7 +1,10 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
+from sqlalchemy.engine import Engine
 
-from app.core.db import check_connection
+from app.api.routes.imports import router as imports_router
+from app.core.db import get_engine
 
 app = FastAPI(title="KotobaForge API")
 
@@ -12,7 +15,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(imports_router)
+
 
 @app.get("/api/health")
-def health():
-    return {"status": "ok", "db": "ok" if check_connection() else "error"}
+def health(engine: Engine = Depends(get_engine)):
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        db_status = "ok"
+    except Exception:
+        db_status = "error"
+    return {"status": "ok", "db": db_status}
