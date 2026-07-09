@@ -1,15 +1,12 @@
-# kotoba
-Kotoba Forge is an SRS Japanese vocabulary app build around the structure, functionality, and design of the Kanji-learning app Wanikani.
-
 # KotobaForge
 
-**KotobaForge** is an open-source, vibe-coded vocabulary learning application for people who want a stricter, more structured way to study Japanese words and phrases. It is heavily inspired by the lesson-and-review rhythm of WaniKani, but instead of teaching a fixed kanji curriculum, KotobaForge is built around the vocabulary that *you* choose to study.
+**KotobaForge** is an open-source, entirely vibe-coded vocabulary learning application for people who want a stricter, more structured way to study Japanese words and phrases. It is heavily inspired by the lesson-and-review rhythm of WaniKani, but instead of teaching a fixed kanji curriculum, KotobaForge is built around the vocabulary that *you* choose to study.
 
 The idea is simple: add words and phrases from your own life, organize them by source, and review them through a strict spaced repetition system that does not let you casually mark answers correct. Whether the word came from work, a manga, a visual novel, an anime, a book, or a conversation, KotobaForge is designed to turn those personally encountered words into a focused study queue.
 
 ## Why I Built This
 
-I built KotobaForge because I wanted a better way to learn Japanese vocabulary from the things I actually encounter.
+I (or rather Claude) built KotobaForge because I wanted a better way to learn Japanese vocabulary from the things I actually encounter.
 
 I have used Anki, and while it is powerful, I always found its self-grading system a little too lenient for the way I study. When a flashcard appears and I am the one deciding whether I “basically got it right,” it becomes way too easy to cheat myself. I wanted something stricter. Something that forces me to type the answer, checks it automatically, and makes me earn progress through repeated correct reviews.
 
