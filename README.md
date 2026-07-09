@@ -1,4 +1,4 @@
-# KotobaForge
+# KotobaForge V1
 
 **KotobaForge** is an open-source, entirely vibe-coded vocabulary learning application for people who want a stricter, more structured way to study Japanese words and phrases. It is heavily inspired by the lesson-and-review rhythm of WaniKani, but instead of teaching a fixed kanji curriculum, KotobaForge is built around the vocabulary that *you* choose to study.
 
