@@ -6,24 +6,17 @@ from sqlalchemy import insert, select, update
 from sqlalchemy.engine import Connection, Engine
 
 from app.core.config import settings
-from app.models import examples as examples_table
-from app.models import (
-    item_forms,
-    item_meanings,
-    item_notes,
-    review_attempts,
-    review_sessions,
-)
-from app.models import similar_items as similar_items_table
-from app.models import source_items, sources, study_progress, vocab_items
+from app.models import item_forms, item_meanings, review_attempts, review_sessions
+from app.models import source_items, sources, study_progress
 from app.services.answer_checking import (
     check_japanese_answer,
     check_meaning_answer,
     normalize_meaning_answer,
 )
+from app.services.item_detail import get_item_detail
 from app.services.level_service import get_source_levels, get_sources_overview
 from app.services.text_normalization import normalize_japanese
-from app.services.time_utils import start_of_local_day_utc
+from app.services.time_utils import round_down_to_hour, start_of_local_day_utc
 
 PROMPT_TYPES = ("meaning", "japanese")
 
@@ -127,46 +120,6 @@ def _select_lesson_batch(conn: Connection, source_id: int, now_aware_utc: dateti
     return eligible_ids[:batch_size]
 
 
-def get_lesson_item_detail(conn: Connection, item_id: int) -> dict:
-    item = conn.execute(select(vocab_items).where(vocab_items.c.id == item_id)).mappings().first()
-    meanings = [
-        r[0] for r in conn.execute(select(item_meanings.c.meaning).where(item_meanings.c.item_id == item_id))
-    ]
-    example_rows = conn.execute(
-        select(
-            examples_table.c.japanese_sentence,
-            examples_table.c.kana_sentence,
-            examples_table.c.english_translation,
-        ).where(examples_table.c.item_id == item_id)
-    ).all()
-    similar = [
-        r[0]
-        for r in conn.execute(
-            select(similar_items_table.c.similar_text).where(similar_items_table.c.item_id == item_id)
-        )
-    ]
-    note_row = conn.execute(select(item_notes).where(item_notes.c.item_id == item_id)).mappings().first()
-
-    return {
-        "item_id": item["id"],
-        "item_type": item["item_type"],
-        "japanese": item["japanese"],
-        "kana": item["kana"],
-        "romaji": item["romaji"],
-        "part_of_speech": item["part_of_speech"],
-        "meanings": meanings,
-        "examples": [
-            {"japanese_sentence": ja, "kana_sentence": ka, "english_translation": en}
-            for ja, ka, en in example_rows
-        ],
-        "similar_items": similar,
-        "notes": {
-            "note_text": note_row["note_text"] if note_row else None,
-            "mnemonic_text": note_row["mnemonic_text"] if note_row else None,
-        },
-    }
-
-
 def start_lesson_session(engine: Engine, source_id: int) -> dict:
     with engine.begin() as conn:
         source = conn.execute(select(sources).where(sources.c.id == source_id)).mappings().first()
@@ -182,7 +135,7 @@ def start_lesson_session(engine: Engine, source_id: int) -> dict:
             insert(review_sessions).values(started_at=now.replace(tzinfo=None), session_type="lesson_quiz")
         ).inserted_primary_key[0]
 
-        items = [get_lesson_item_detail(conn, item_id) for item_id in batch_item_ids]
+        items = [get_item_detail(conn, item_id) for item_id in batch_item_ids]
 
     return {"session_id": session_id, "items": items}
 
@@ -204,10 +157,6 @@ def _accepted_kana_forms(conn: Connection, item_id: int) -> List[str]:
 def _accepted_meanings(conn: Connection, item_id: int) -> List[str]:
     rows = conn.execute(select(item_meanings.c.meaning).where(item_meanings.c.item_id == item_id)).all()
     return [r[0] for r in rows]
-
-
-def _round_down_to_hour(value: datetime) -> datetime:
-    return value.replace(minute=0, second=0, microsecond=0)
 
 
 def _correctly_answered_prompt_types(conn: Connection, session_id: int, item_id: int) -> Set[str]:
@@ -232,7 +181,7 @@ def _activate_if_not_already(conn: Connection, item_id: int, now_naive_utc: date
     if current_stage != 0:
         return False
 
-    next_review_at = _round_down_to_hour(now_naive_utc + timedelta(hours=4))
+    next_review_at = round_down_to_hour(now_naive_utc + timedelta(hours=4))
     conn.execute(
         update(study_progress)
         .where(study_progress.c.item_id == item_id)

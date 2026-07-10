@@ -4,7 +4,7 @@ import SourceLevelCard from '../components/SourceLevelCard'
 import SrsDistribution from '../components/SrsDistribution'
 import './Dashboard.css'
 
-function Dashboard({ onStartLessons }) {
+function Dashboard({ onStartLessons, onStartReviews, reviewStartError, startingReview }) {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
 
@@ -46,12 +46,17 @@ function Dashboard({ onStartLessons }) {
           Lessons
           <span className="action-count">{data.lessons_available}</span>
         </button>
-        <button className="action-button" type="button" disabled>
-          Reviews
+        <button
+          className="action-button"
+          type="button"
+          onClick={onStartReviews}
+          disabled={data.reviews_available === 0 || startingReview}
+        >
+          {startingReview ? 'Starting...' : 'Reviews'}
           <span className="action-count">{data.reviews_available}</span>
         </button>
       </div>
-      <p className="coming-soon-note">Reviews aren't implemented yet — counts only.</p>
+      {reviewStartError && <p className="dashboard-error">{reviewStartError}</p>}
 
       <section>
         <h2>Sources</h2>

@@ -37,11 +37,6 @@
   font-weight: 700;
 }
 
-.coming-soon-note {
-  font-size: 0.85rem;
-  color: var(--text);
-  margin-bottom: 2rem;
-}
 
 .source-cards {
   display: grid;

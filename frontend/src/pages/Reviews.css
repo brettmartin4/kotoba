@@ -1,0 +1,63 @@
+@keyframes review-shake {
+  10%,
+  90% {
+    transform: translateX(-1px);
+  }
+  20%,
+  80% {
+    transform: translateX(2px);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translateX(-4px);
+  }
+  40%,
+  60% {
+    transform: translateX(4px);
+  }
+}
+
+.shake {
+  animation: review-shake 0.4s;
+}
+
+.typo-warning {
+  color: #b8860b;
+  font-weight: 600;
+  margin-top: 0.5rem;
+}
+
+.item-info-panel {
+  margin-top: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  text-align: left;
+}
+
+.info-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+}
+
+.info-tab {
+  flex: 1;
+  padding: 0.5rem;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.info-tab.active {
+  font-weight: 600;
+  color: var(--text-h);
+  border-bottom: 2px solid var(--accent);
+}
+
+.info-tab-content {
+  padding: 1rem;
+}

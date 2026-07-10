@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.models import review_attempts, review_sessions, sources, study_progress, vocab_items
 from app.services.lesson_service import eligible_lesson_item_ids, lessons_learned_today
 from app.services.level_service import get_sources_overview
+from app.services.review_service import select_due_item_ids
 from app.services.time_utils import today_local_date, utc_to_local_date
 
 
@@ -25,14 +26,7 @@ def rename_source(conn: Connection, source_id: int, display_name: str) -> Option
 
 
 def _reviews_available_count(conn: Connection, now_naive_utc: datetime) -> int:
-    rows = conn.execute(
-        select(study_progress.c.item_id).where(
-            study_progress.c.srs_stage.between(1, 8),
-            study_progress.c.next_review_at.is_not(None),
-            study_progress.c.next_review_at <= now_naive_utc,
-        )
-    ).all()
-    return len(rows)
+    return len(select_due_item_ids(conn, now_naive_utc))
 
 
 def _srs_distribution(conn: Connection) -> Dict[str, int]:

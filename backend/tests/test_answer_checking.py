@@ -1,6 +1,7 @@
 from app.services.answer_checking import (
     check_japanese_answer,
     check_meaning_answer,
+    grade_meaning_answer,
     normalize_meaning_answer,
 )
 
@@ -52,3 +53,42 @@ def test_check_japanese_answer_width_normalizes():
     # still match after NFKC folding via normalize_japanese reuse
     assert check_japanese_answer("Ａ", ["Ａ"], ["あ"]) is True
     assert check_japanese_answer("A", ["Ａ"], ["あ"]) is True
+
+
+def test_grade_meaning_answer_exact_match_is_correct():
+    assert grade_meaning_answer("Confirm", ["confirm", "verify"]) == "correct"
+    assert grade_meaning_answer("the verify", ["confirm", "verify"]) == "correct"
+
+
+def test_grade_meaning_answer_rejects_blank_submission():
+    assert grade_meaning_answer("", ["confirm"]) == "incorrect"
+    assert grade_meaning_answer("   ", ["confirm"]) == "incorrect"
+
+
+def test_grade_meaning_answer_short_word_one_substitution_is_typo_warning():
+    # "check" -> "cheek": single substitution, length 5 (<=6 -> allowed distance 1)
+    assert grade_meaning_answer("cheek", ["check"]) == "typo_warning"
+
+
+def test_grade_meaning_answer_short_word_two_substitutions_is_incorrect():
+    # "check" -> "chxxk": two substitutions, length 5 (<=6 -> allowed distance 1, so 2 fails)
+    assert grade_meaning_answer("chxxk", ["check"]) == "incorrect"
+
+
+def test_grade_meaning_answer_long_word_two_edits_is_typo_warning():
+    # "beautiful" -> "beautif": two deletions, length 9 (>6 -> allowed distance 2)
+    assert grade_meaning_answer("beautif", ["beautiful"]) == "typo_warning"
+
+
+def test_grade_meaning_answer_long_word_three_edits_is_incorrect():
+    # "beautiful" -> "beauti": three deletions, length 9 (>6 -> allowed distance 2, so 3 fails)
+    assert grade_meaning_answer("beauti", ["beautiful"]) == "incorrect"
+
+
+def test_grade_meaning_answer_short_words_get_no_typo_tolerance():
+    # "go" vs "no": one substitution but both under the 3-character minimum length
+    assert grade_meaning_answer("no", ["go"]) == "incorrect"
+
+
+def test_grade_meaning_answer_checks_closeness_against_every_accepted_meaning():
+    assert grade_meaning_answer("cheek", ["verify", "check"]) == "typo_warning"

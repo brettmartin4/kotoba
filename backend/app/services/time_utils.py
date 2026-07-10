@@ -20,3 +20,7 @@ def utc_to_local_date(naive_utc: datetime) -> date:
 
 def today_local_date() -> date:
     return datetime.now(timezone.utc).astimezone().date()
+
+
+def round_down_to_hour(value: datetime) -> datetime:
+    return value.replace(minute=0, second=0, microsecond=0)
