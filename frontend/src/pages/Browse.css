@@ -1,0 +1,126 @@
+.browse-screen,
+.item-detail-screen {
+  max-width: 1000px;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+}
+
+.browse-filters {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.browse-filters input[type='text'] {
+  flex: 1;
+  min-width: 200px;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  font-family: inherit;
+}
+
+.browse-filters select {
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  font-family: inherit;
+}
+
+.browse-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.browse-table th,
+.browse-table td {
+  text-align: left;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.meaning-list {
+  list-style: none;
+  padding: 0;
+}
+
+.meaning-list li {
+  margin-bottom: 0.25rem;
+}
+
+.meaning-origin {
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.85rem;
+  margin-left: 0.5rem;
+  padding: 0;
+  font-family: inherit;
+}
+
+.synonym-editor form {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.synonym-editor input {
+  flex: 1;
+  padding: 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  font-family: inherit;
+}
+
+.notes-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 500px;
+}
+
+.notes-editor label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.notes-editor textarea {
+  font-family: inherit;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  resize: vertical;
+}
+
+.saved-indicator {
+  color: #2e7d32;
+  margin-left: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.membership-list,
+.history-list {
+  list-style: none;
+  padding: 0;
+}
+
+.membership-list li,
+.history-list li {
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.source-note {
+  color: var(--text);
+  font-style: italic;
+}

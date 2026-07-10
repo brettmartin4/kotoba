@@ -1,0 +1,29 @@
+.admin-screen {
+  max-width: 900px;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+}
+
+.admin-screen section {
+  margin-bottom: 2rem;
+}
+
+.admin-source-list {
+  list-style: none;
+  padding: 0;
+}
+
+.admin-source-list li {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-source-list input {
+  padding: 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 0.3rem;
+  font-family: inherit;
+}

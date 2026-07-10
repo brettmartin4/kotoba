@@ -1,0 +1,17 @@
+.nav-bar {
+  display: flex;
+  gap: 1.5rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-link {
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.nav-link.active {
+  color: var(--text-h);
+  font-weight: 700;
+}

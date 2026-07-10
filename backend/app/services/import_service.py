@@ -410,6 +410,15 @@ def get_import_runs(engine: Engine) -> List[dict]:
         return [dict(r) for r in rows]
 
 
+def _format_import_run_item(row: dict) -> dict:
+    formatted = dict(row)
+    raw_data_json = formatted.pop("raw_data_json", None)
+    candidate_item_ids_json = formatted.pop("candidate_item_ids_json", None)
+    formatted["raw_data"] = json.loads(raw_data_json) if raw_data_json else None
+    formatted["candidate_item_ids"] = json.loads(candidate_item_ids_json) if candidate_item_ids_json else None
+    return formatted
+
+
 def get_import_run_detail(engine: Engine, run_id: int) -> Optional[dict]:
     with engine.connect() as conn:
         run = conn.execute(select(import_runs).where(import_runs.c.id == run_id)).mappings().first()
@@ -418,4 +427,4 @@ def get_import_run_detail(engine: Engine, run_id: int) -> Optional[dict]:
         items = conn.execute(
             select(import_run_items).where(import_run_items.c.import_run_id == run_id)
         ).mappings().all()
-        return {"run": dict(run), "items": [dict(i) for i in items]}
+        return {"run": dict(run), "items": [_format_import_run_item(dict(i)) for i in items]}
