@@ -27,3 +27,44 @@
   border-radius: 0.3rem;
   font-family: inherit;
 }
+
+.queue-card {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.queue-card-source {
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.side-by-side {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.side-panel {
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  padding: 0.75rem;
+}
+
+.candidate-option {
+  display: block;
+  padding: 0.5rem 0;
+  border-bottom: 1px dashed var(--border);
+}
+
+.candidate-option:last-child {
+  border-bottom: none;
+}
+
+.queue-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}

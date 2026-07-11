@@ -195,7 +195,8 @@ import_run_items = Table(
     Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
     CheckConstraint(
         "status IN ('new','added_to_source','unchanged','updated_pending_approval',"
-        "'duplicate_pending_merge','merged','skipped','error','inactive')",
+        "'duplicate_pending_merge','merged','skipped','error','inactive',"
+        "'approved','kept_separate')",
         name="ck_import_run_items_status",
     ),
 )
@@ -206,4 +207,30 @@ settings_table = Table(
     Column("key", String, primary_key=True),
     Column("value", String, nullable=True),
     Column("updated_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+)
+
+# Remembers a manual duplicate-review decision keyed by (source, normalized japanese,
+# normalized kana), so a row that only ever partially matches an existing item (and thus
+# can never become a plain exact-match reimport) doesn't get re-staged as a fresh
+# duplicate_pending_merge -- and its resulting source_items relationship doesn't get
+# flipped inactive by the "not seen this run" cleanup -- on every future import.
+source_row_resolutions = Table(
+    "source_row_resolutions",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("source_id", Integer, ForeignKey("sources.id"), nullable=False),
+    Column("normalized_japanese", String, nullable=False),
+    Column("normalized_kana", String, nullable=False),
+    Column("resolution_type", String, nullable=False),
+    Column("resolved_item_id", Integer, ForeignKey("vocab_items.id"), nullable=True),
+    Column("created_from_import_run_item_id", Integer, ForeignKey("import_run_items.id"), nullable=True),
+    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+    Column("updated_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+    UniqueConstraint(
+        "source_id", "normalized_japanese", "normalized_kana", name="uq_source_row_resolutions_row"
+    ),
+    CheckConstraint(
+        "resolution_type IN ('merged','kept_separate','skipped')",
+        name="ck_source_row_resolutions_type",
+    ),
 )

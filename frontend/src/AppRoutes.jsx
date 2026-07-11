@@ -4,7 +4,9 @@ import { startReview } from './api/reviews'
 import Layout from './components/Layout'
 import Admin from './pages/Admin'
 import Browse from './pages/Browse'
+import ChangeQueue from './pages/ChangeQueue'
 import Dashboard from './pages/Dashboard'
+import DuplicateQueue from './pages/DuplicateQueue'
 import ImportRunDetail from './pages/ImportRunDetail'
 import ImportRuns from './pages/ImportRuns'
 import ItemDetail from './pages/ItemDetail'
@@ -81,6 +83,8 @@ function AppRoutes() {
         <Route path="/admin" element={<Admin />} />
         <Route path="/admin/import-runs" element={<ImportRuns />} />
         <Route path="/admin/import-runs/:runId" element={<ImportRunDetail />} />
+        <Route path="/admin/duplicates" element={<DuplicateQueue />} />
+        <Route path="/admin/changes" element={<ChangeQueue />} />
       </Route>
 
       <Route path="/lessons" element={<LessonsAvailable onBack={goToDashboard} onStart={handleLessonStarted} />} />

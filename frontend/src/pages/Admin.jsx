@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { fetchPendingChanges, fetchPendingDuplicates } from '../api/importActions'
 import { triggerImportRefresh } from '../api/imports'
 import { fetchSources, renameSource } from '../api/sources'
 import './Admin.css'
@@ -11,11 +12,19 @@ function Admin() {
   const [refreshSummary, setRefreshSummary] = useState(null)
   const [editingId, setEditingId] = useState(null)
   const [editValue, setEditValue] = useState('')
+  const [pendingDuplicateCount, setPendingDuplicateCount] = useState(null)
+  const [pendingChangeCount, setPendingChangeCount] = useState(null)
 
   function load() {
     fetchSources()
       .then(setSources)
       .catch((err) => setError(err.message))
+    fetchPendingDuplicates()
+      .then((rows) => setPendingDuplicateCount(rows.length))
+      .catch(() => {})
+    fetchPendingChanges()
+      .then((rows) => setPendingChangeCount(rows.length))
+      .catch(() => {})
   }
 
   useEffect(() => {
@@ -70,6 +79,18 @@ function Admin() {
         )}
         <p>
           <Link to="/admin/import-runs">View import log &rarr;</Link>
+        </p>
+      </section>
+
+      <section>
+        <h2>Pending Review</h2>
+        <p>
+          <Link to="/admin/duplicates">Duplicate merge queue</Link>
+          {pendingDuplicateCount !== null && ` (${pendingDuplicateCount})`}
+        </p>
+        <p>
+          <Link to="/admin/changes">Changed item approval queue</Link>
+          {pendingChangeCount !== null && ` (${pendingChangeCount})`}
         </p>
       </section>
 
