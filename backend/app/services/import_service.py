@@ -13,8 +13,10 @@ from app.models import (
 from app.models import (
     import_run_items,
     import_runs,
+    item_meaning_sources,
     item_meanings,
     item_forms,
+    similar_item_sources,
     similar_items as similar_items_table,
     source_items,
     source_row_resolutions,
@@ -220,32 +222,6 @@ def _next_slot(conn: Connection, source_id: int) -> Tuple[int, int]:
     return level + 1, 1
 
 
-def _existing_meanings_all(conn: Connection, item_id: int) -> Set[str]:
-    return {
-        r[0] for r in conn.execute(
-            select(item_meanings.c.normalized_meaning).where(item_meanings.c.item_id == item_id)
-        )
-    }
-
-
-def _existing_meanings_imported(conn: Connection, item_id: int) -> Set[str]:
-    return {
-        r[0] for r in conn.execute(
-            select(item_meanings.c.normalized_meaning).where(
-                item_meanings.c.item_id == item_id, item_meanings.c.origin == "imported"
-            )
-        )
-    }
-
-
-def _existing_similar(conn: Connection, item_id: int) -> Set[str]:
-    return {
-        r[0] for r in conn.execute(
-            select(similar_items_table.c.similar_text).where(similar_items_table.c.item_id == item_id)
-        )
-    }
-
-
 def _existing_examples_for_source(conn: Connection, item_id: int, source_id: int) -> Set[Tuple[str, str, str]]:
     rows = conn.execute(
         select(
@@ -257,25 +233,97 @@ def _existing_examples_for_source(conn: Connection, item_id: int, source_id: int
     return {tuple(r) for r in rows}
 
 
-def _insert_new_meanings(conn: Connection, item_id: int, meanings: List[str]) -> None:
-    existing = _existing_meanings_all(conn, item_id)
+def _meanings_attributed_to_source(conn: Connection, item_id: int, source_id: int) -> Set[str]:
+    """Imported meanings this specific source has previously contributed to this
+    item, per item_meaning_sources -- never includes user_synonym-origin meanings,
+    and never includes meanings only some *other* source contributed."""
+    rows = conn.execute(
+        select(item_meanings.c.normalized_meaning)
+        .select_from(item_meanings.join(item_meaning_sources, item_meanings.c.id == item_meaning_sources.c.item_meaning_id))
+        .where(
+            item_meanings.c.item_id == item_id,
+            item_meanings.c.origin == "imported",
+            item_meaning_sources.c.source_id == source_id,
+        )
+    ).all()
+    return {r[0] for r in rows}
+
+
+def _similar_items_attributed_to_source(conn: Connection, item_id: int, source_id: int) -> Set[str]:
+    rows = conn.execute(
+        select(similar_items_table.c.similar_text)
+        .select_from(
+            similar_items_table.join(
+                similar_item_sources, similar_items_table.c.id == similar_item_sources.c.similar_item_id
+            )
+        )
+        .where(similar_items_table.c.item_id == item_id, similar_item_sources.c.source_id == source_id)
+    ).all()
+    return {r[0] for r in rows}
+
+
+def _ensure_meaning_source_link(conn: Connection, item_meaning_id: int, source_id: int) -> None:
+    exists = conn.execute(
+        select(item_meaning_sources.c.id).where(
+            item_meaning_sources.c.item_meaning_id == item_meaning_id,
+            item_meaning_sources.c.source_id == source_id,
+        )
+    ).first()
+    if exists is None:
+        conn.execute(insert(item_meaning_sources).values(item_meaning_id=item_meaning_id, source_id=source_id))
+
+
+def _ensure_similar_item_source_link(conn: Connection, similar_item_id: int, source_id: int) -> None:
+    exists = conn.execute(
+        select(similar_item_sources.c.id).where(
+            similar_item_sources.c.similar_item_id == similar_item_id,
+            similar_item_sources.c.source_id == source_id,
+        )
+    ).first()
+    if exists is None:
+        conn.execute(
+            insert(similar_item_sources).values(similar_item_id=similar_item_id, source_id=source_id)
+        )
+
+
+def _insert_new_meanings(conn: Connection, item_id: int, source_id: int, meanings: List[str]) -> None:
+    """Adds any meanings not already present for this item, and -- for every meaning
+    in the list, whether just-created or already there -- links it to source_id so
+    future reimports can diff this source's own contribution precisely."""
+    existing = {
+        r[1]: r[0]
+        for r in conn.execute(
+            select(item_meanings.c.id, item_meanings.c.normalized_meaning).where(item_meanings.c.item_id == item_id)
+        )
+    }
     for meaning in meanings:
         normalized = normalize_meaning(meaning)
         if normalized not in existing:
-            conn.execute(
+            new_id = conn.execute(
                 insert(item_meanings).values(
                     item_id=item_id, meaning=meaning, normalized_meaning=normalized, origin="imported",
                 )
+            ).inserted_primary_key[0]
+            existing[normalized] = new_id
+        _ensure_meaning_source_link(conn, existing[normalized], source_id)
+
+
+def _insert_new_similar_items(conn: Connection, item_id: int, source_id: int, similar: List[str]) -> None:
+    existing = {
+        r[1]: r[0]
+        for r in conn.execute(
+            select(similar_items_table.c.id, similar_items_table.c.similar_text).where(
+                similar_items_table.c.item_id == item_id
             )
-            existing.add(normalized)
-
-
-def _insert_new_similar_items(conn: Connection, item_id: int, similar: List[str]) -> None:
-    existing = _existing_similar(conn, item_id)
+        )
+    }
     for text in similar:
         if text not in existing:
-            conn.execute(insert(similar_items_table).values(item_id=item_id, similar_text=text))
-            existing.add(text)
+            new_id = conn.execute(
+                insert(similar_items_table).values(item_id=item_id, similar_text=text)
+            ).inserted_primary_key[0]
+            existing[text] = new_id
+        _ensure_similar_item_source_link(conn, existing[text], source_id)
 
 
 def _insert_examples_for_source(
@@ -293,7 +341,7 @@ def _insert_examples_for_source(
         )
 
 
-def _create_vocab_item(conn: Connection, row: ParsedRow) -> int:
+def _create_vocab_item(conn: Connection, source_id: int, row: ParsedRow) -> int:
     normalized_japanese = normalize_japanese(row.japanese)
     normalized_kana = normalize_kana(row.kana)
 
@@ -320,8 +368,8 @@ def _create_vocab_item(conn: Connection, row: ParsedRow) -> int:
         )
     )
 
-    _insert_new_meanings(conn, item_id, row.meanings)
-    _insert_new_similar_items(conn, item_id, row.similar_items)
+    _insert_new_meanings(conn, item_id, source_id, row.meanings)
+    _insert_new_similar_items(conn, item_id, source_id, row.similar_items)
 
     conn.execute(insert(study_progress).values(item_id=item_id, srs_stage=0))
 
@@ -407,8 +455,8 @@ def _apply_merge_content(conn: Connection, target_item_id: int, source_id: int, 
     item_notes, or user_synonym-origin item_meanings -- shared by merge_duplicate
     and the automatic prior-resolution fast path in _process_row."""
     examples = [ParsedExample(**example) for example in raw["examples"]]
-    _insert_new_meanings(conn, target_item_id, raw["meanings"])
-    _insert_new_similar_items(conn, target_item_id, raw["similar_items"])
+    _insert_new_meanings(conn, target_item_id, source_id, raw["meanings"])
+    _insert_new_similar_items(conn, target_item_id, source_id, raw["similar_items"])
     _insert_examples_for_source(conn, target_item_id, source_id, examples)
 
     existing_source_item = conn.execute(
@@ -498,7 +546,7 @@ def _process_row(
             )
             return None, "duplicate_pending_merge", message, candidate_ids
 
-        item_id = _create_vocab_item(conn, row)
+        item_id = _create_vocab_item(conn, source_id, row)
         _insert_examples_for_source(conn, item_id, source_id, row.examples)
         _create_source_item(conn, source_id, item_id, row)
         return item_id, "new", None, None
@@ -523,8 +571,8 @@ def _process_row(
     if existing_source_item is None:
         # First time this source has contributed this item: safe to add additively,
         # since nothing existing is being overwritten, only appended.
-        _insert_new_meanings(conn, item_id, row.meanings)
-        _insert_new_similar_items(conn, item_id, row.similar_items)
+        _insert_new_meanings(conn, item_id, source_id, row.meanings)
+        _insert_new_similar_items(conn, item_id, source_id, row.similar_items)
         _insert_examples_for_source(conn, item_id, source_id, row.examples)
         _create_source_item(conn, source_id, item_id, row)
         membership_status = "added_to_source"
@@ -533,12 +581,28 @@ def _process_row(
         row_similar = set(row.similar_items)
         row_examples = {(e.japanese, e.kana, e.english) for e in row.examples}
 
-        if row_meanings != _existing_meanings_imported(conn, item_id):
-            content_diff = True
-            diff_fields.append("meanings")
-        if row_similar != _existing_similar(conn, item_id):
-            content_diff = True
-            diff_fields.append("similar_items")
+        # Scoped to what THIS source previously contributed, not everything any
+        # source ever added to the shared canonical item (that was the bug: a
+        # merge from another source made this source's unchanged reimport look
+        # "changed" forever). No attribution history yet means this relationship
+        # predates attribution tracking -- treat as no diff and backfill silently
+        # rather than flagging a spurious first-time change.
+        attributed_meanings = _meanings_attributed_to_source(conn, item_id, source_id)
+        if attributed_meanings:
+            if row_meanings != attributed_meanings:
+                content_diff = True
+                diff_fields.append("meanings")
+        else:
+            _insert_new_meanings(conn, item_id, source_id, row.meanings)
+
+        attributed_similar = _similar_items_attributed_to_source(conn, item_id, source_id)
+        if attributed_similar:
+            if row_similar != attributed_similar:
+                content_diff = True
+                diff_fields.append("similar_items")
+        else:
+            _insert_new_similar_items(conn, item_id, source_id, row.similar_items)
+
         if row_examples != _existing_examples_for_source(conn, item_id, source_id):
             content_diff = True
             diff_fields.append("examples")
@@ -723,7 +787,7 @@ def keep_separate_duplicate(engine: Engine, import_run_item_id: int) -> dict:
         raw = json.loads(row["raw_data_json"])
         reconstructed = _row_from_raw_data(raw, row["row_number"])
 
-        item_id = _create_vocab_item(conn, reconstructed)
+        item_id = _create_vocab_item(conn, row["source_id"], reconstructed)
         _insert_examples_for_source(conn, item_id, row["source_id"], reconstructed.examples)
         _create_source_item(conn, row["source_id"], item_id, reconstructed)
         _upsert_resolution(
@@ -793,8 +857,8 @@ def approve_change(engine: Engine, import_run_item_id: int) -> dict:
             conn.execute(update(vocab_items).where(vocab_items.c.id == item_id).values(**updates))
 
         examples = [ParsedExample(**example) for example in raw["examples"]]
-        _insert_new_meanings(conn, item_id, raw["meanings"])
-        _insert_new_similar_items(conn, item_id, raw["similar_items"])
+        _insert_new_meanings(conn, item_id, source_id, raw["meanings"])
+        _insert_new_similar_items(conn, item_id, source_id, raw["similar_items"])
         _insert_examples_for_source(conn, item_id, source_id, examples)
 
         if raw.get("source_note") != existing_source_item["source_note"]:

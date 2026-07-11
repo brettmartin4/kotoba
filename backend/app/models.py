@@ -108,6 +108,32 @@ similar_items = Table(
     Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
 )
 
+# Many-to-many: which source(s) contributed a given (deduplicated) meaning/similar-item
+# row. Lets exact-match reimport diffing compare a source's row against only what that
+# source itself previously contributed, instead of everything any source ever added to
+# the shared canonical item (the bug: a merge from source B making source A's unchanged
+# reimport look "changed" forever). item_meanings/similar_items themselves stay exactly
+# as deduplicated as before -- this only tracks attribution on top.
+item_meaning_sources = Table(
+    "item_meaning_sources",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("item_meaning_id", Integer, ForeignKey("item_meanings.id"), nullable=False),
+    Column("source_id", Integer, ForeignKey("sources.id"), nullable=False),
+    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+    UniqueConstraint("item_meaning_id", "source_id", name="uq_item_meaning_sources"),
+)
+
+similar_item_sources = Table(
+    "similar_item_sources",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("similar_item_id", Integer, ForeignKey("similar_items.id"), nullable=False),
+    Column("source_id", Integer, ForeignKey("sources.id"), nullable=False),
+    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+    UniqueConstraint("similar_item_id", "source_id", name="uq_similar_item_sources"),
+)
+
 # Not written to by the import pipeline; exists now so later phases (user notes/mnemonics)
 # need no migration, and so reimport logic never has to reason about this table at all.
 item_notes = Table(
