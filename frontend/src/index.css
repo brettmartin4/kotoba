@@ -17,7 +17,7 @@
 
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
-  color-scheme: light dark;
+  color-scheme: light;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
@@ -30,36 +30,21 @@
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
-
 body {
   margin: 0;
+  /* The study-screen full-bleed breakout (100vw + negative margin) can
+     introduce a stray horizontal scrollbar depending on the vertical
+     scrollbar's gutter width; this prevents that without affecting normal
+     page scrolling. */
+  overflow-x: hidden;
 }
 
+/* V1 is light-mode only (spec 15.1.5) -- no dark-mode media query. */
 #root {
-  width: 1126px;
-  max-width: 100%;
+  width: 100%;
+  max-width: 1300px;
   margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
+  text-align: left;
   min-height: 100svh;
   display: flex;
   flex-direction: column;
@@ -75,6 +60,12 @@ h2 {
 
 h1 {
   font-size: 56px;
+  /* :root sets line-height as 145% of ITS OWN 18px font-size (a fixed
+     26px), which inherits unchanged into h1 rather than scaling with h1's
+     much larger font-size -- without this, a 56px-tall glyph sits inside a
+     26px line box and visibly overlaps whatever's on the next line. h2
+     already has its own relative line-height for the same reason. */
+  line-height: 1.15;
   letter-spacing: -1.68px;
   margin: 32px 0;
   @media (max-width: 1024px) {

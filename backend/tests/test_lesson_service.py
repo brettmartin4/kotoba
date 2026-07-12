@@ -150,6 +150,31 @@ def test_per_prompt_requeue_item_not_activated_until_both_prompts_correct(engine
     assert japanese_right["item_activated"] is True
 
 
+def test_meaning_typo_warning_does_not_resolve_and_allows_retry(engine):
+    with engine.begin() as conn:
+        source_id = _make_source(conn)
+        item_id = _make_item(conn, "確認", "かくにん", ["check"])
+        _place(conn, source_id, item_id)
+
+    session_id = start_lesson_session(engine, source_id)["session_id"]
+
+    typo_result = record_lesson_answer(engine, session_id, item_id, "meaning", "cheek")
+    assert typo_result["status"] == "typo_warning"
+    assert typo_result["correct_answers"] == []
+    assert typo_result["item_passed"] is False
+    assert typo_result["item_activated"] is False
+
+    # Not resolved: no review_attempts row was recorded, so passing the item
+    # still requires a genuine correct answer for this prompt afterward.
+    retry_result = record_lesson_answer(engine, session_id, item_id, "meaning", "check")
+    assert retry_result["status"] == "correct"
+    assert retry_result["is_correct"] is True
+
+    japanese_result = record_lesson_answer(engine, session_id, item_id, "japanese", "かくにん")
+    assert japanese_result["item_passed"] is True
+    assert japanese_result["item_activated"] is True
+
+
 def test_activation_sets_learned_at_and_rounds_next_review_to_the_hour(engine):
     with engine.begin() as conn:
         source_id = _make_source(conn)

@@ -10,10 +10,10 @@ def _make_source(conn, key="work"):
     ).inserted_primary_key[0]
 
 
-def _make_item(conn, japanese, kana, srs_stage=0):
+def _make_item(conn, japanese, kana, srs_stage=0, item_type="word"):
     item_id = conn.execute(
         insert(vocab_items).values(
-            item_type="word",
+            item_type=item_type,
             japanese=japanese,
             kana=kana,
             romaji="r",
@@ -38,11 +38,11 @@ def _place(conn, source_id, item_id, level, position, active=True):
     )
 
 
-def _fill_level(conn, source_id, level, count, guru_count, prefix, active=True):
+def _fill_level(conn, source_id, level, count, guru_count, prefix, active=True, item_type="word", start_position=1):
     for i in range(count):
         stage = 5 if i < guru_count else 0
-        item_id = _make_item(conn, f"{prefix}{i}", f"{prefix}kana{i}", srs_stage=stage)
-        _place(conn, source_id, item_id, level, i + 1, active=active)
+        item_id = _make_item(conn, f"{prefix}{i}", f"{prefix}kana{i}", srs_stage=stage, item_type=item_type)
+        _place(conn, source_id, item_id, level, start_position + i, active=active)
 
 
 def test_no_items_yet_has_no_levels(engine):
@@ -159,6 +159,51 @@ def test_duplicate_item_shared_progress_counts_immediately_in_every_source(engin
     assert levels_b[0]["guru_or_higher_count"] == 9
     assert current_a == 2
     assert current_b == 2
+
+
+# --- per-level word/phrase breakdown (by_type) --------------------------------------
+
+
+def test_level_by_type_breakdown_splits_word_and_phrase_counts(engine):
+    with engine.begin() as conn:
+        source_id = _make_source(conn)
+        _fill_level(conn, source_id, 1, count=5, guru_count=3, prefix="w", item_type="word", start_position=1)
+        _fill_level(conn, source_id, 1, count=5, guru_count=1, prefix="p", item_type="phrase", start_position=6)
+
+    with engine.connect() as conn:
+        levels, _current_level = get_source_levels(conn, source_id)
+
+    level_1 = levels[0]
+    # Blended totals (used by the unlock threshold) stay combined across both types.
+    assert level_1["active_item_count"] == 10
+    assert level_1["guru_or_higher_count"] == 4
+
+    assert level_1["by_type"]["word"] == {
+        "active_item_count": 5,
+        "guru_or_higher_count": 3,
+        "percent_guru": 60.0,
+    }
+    assert level_1["by_type"]["phrase"] == {
+        "active_item_count": 5,
+        "guru_or_higher_count": 1,
+        "percent_guru": 20.0,
+    }
+
+
+def test_level_by_type_breakdown_zero_for_absent_type(engine):
+    with engine.begin() as conn:
+        source_id = _make_source(conn)
+        _fill_level(conn, source_id, 1, count=4, guru_count=2, prefix="w", item_type="word")
+
+    with engine.connect() as conn:
+        levels, _current_level = get_source_levels(conn, source_id)
+
+    assert levels[0]["by_type"]["word"]["active_item_count"] == 4
+    assert levels[0]["by_type"]["phrase"] == {
+        "active_item_count": 0,
+        "guru_or_higher_count": 0,
+        "percent_guru": 0.0,
+    }
 
 
 def test_lessons_available_in_source_excludes_learned_locked_and_inactive_items(engine):

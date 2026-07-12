@@ -5,12 +5,14 @@ import './Admin.css'
 
 function ImportRuns() {
   const [runs, setRuns] = useState([])
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   useEffect(() => {
     fetchImportRuns()
       .then(setRuns)
       .catch((err) => setError(err.message))
+      .finally(() => setLoading(false))
   }, [])
 
   return (
@@ -22,33 +24,37 @@ function ImportRuns() {
 
       {error && <p className="dashboard-error">{error}</p>}
 
-      <table className="browse-table">
-        <thead>
-          <tr>
-            <th>Run</th>
-            <th>Started</th>
-            <th>Status</th>
-            <th>Summary</th>
-          </tr>
-        </thead>
-        <tbody>
-          {runs.map((run) => (
-            <tr key={run.id}>
-              <td>
-                <Link to={`/admin/import-runs/${run.id}`}>#{run.id}</Link>
-              </td>
-              <td>{run.started_at}</td>
-              <td>{run.status}</td>
-              <td>{run.summary_json}</td>
-            </tr>
-          ))}
-          {runs.length === 0 && (
+      {loading ? (
+        <p>Loading...</p>
+      ) : (
+        <table className="browse-table">
+          <thead>
             <tr>
-              <td colSpan={4}>No import runs yet.</td>
+              <th>Run</th>
+              <th>Started</th>
+              <th>Status</th>
+              <th>Summary</th>
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {runs.map((run) => (
+              <tr key={run.id}>
+                <td>
+                  <Link to={`/admin/import-runs/${run.id}`}>#{run.id}</Link>
+                </td>
+                <td>{run.started_at}</td>
+                <td>{run.status}</td>
+                <td>{run.summary_json}</td>
+              </tr>
+            ))}
+            {runs.length === 0 && (
+              <tr>
+                <td colSpan={4}>No import runs yet.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      )}
     </main>
   )
 }

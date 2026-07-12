@@ -36,6 +36,14 @@
   text-align: left;
 }
 
+.item-info-panel .info-tab-content {
+  line-height: 1.6;
+}
+
+.item-info-panel .info-tab-content p {
+  margin-bottom: 0.5rem;
+}
+
 .info-tabs {
   display: flex;
   border-bottom: 1px solid var(--border);
@@ -55,9 +63,79 @@
 .info-tab.active {
   font-weight: 600;
   color: var(--text-h);
-  border-bottom: 2px solid var(--accent);
+  border-bottom: 2px solid var(--item-accent, var(--accent));
 }
 
 .info-tab-content {
   padding: 1rem;
+}
+
+/* Shared labeled-field pattern, used by ItemInfoPanel.jsx and ItemDetail.jsx
+   instead of unlabeled stacked <p> lines. */
+.field-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.field-row:last-child {
+  border-bottom: none;
+}
+
+.field-label {
+  color: var(--text);
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.field-value {
+  font-weight: 500;
+  text-align: right;
+}
+
+.note-block {
+  margin-bottom: 0.75rem;
+}
+
+.note-block:last-child {
+  margin-bottom: 0;
+}
+
+.note-block .field-label {
+  display: block;
+  margin-bottom: 0.15rem;
+}
+
+.note-block p {
+  margin: 0;
+}
+
+/* Example sentence blocks: Japanese prominent, kana muted/smaller, English
+   as a caption -- instead of three unlabeled same-weight lines. */
+.example-block {
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.example-block:last-child {
+  border-bottom: none;
+}
+
+.example-japanese {
+  font-size: 1.05rem;
+  margin-bottom: 0.15rem !important;
+}
+
+.example-kana {
+  color: var(--text);
+  font-size: 0.85rem;
+  margin-bottom: 0.3rem !important;
+}
+
+.example-english {
+  font-style: italic;
+  color: var(--text);
 }

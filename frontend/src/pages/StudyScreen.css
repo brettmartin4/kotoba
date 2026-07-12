@@ -1,0 +1,163 @@
+/* Full-bleed breakout: escapes #root's max-width, computed against the
+   viewport so it works regardless of any ancestor's own width constraint. */
+.full-bleed {
+  width: 100vw;
+  position: relative;
+  left: 50%;
+  right: 50%;
+  margin-left: -50vw;
+  margin-right: -50vw;
+}
+
+.study-screen {
+  padding-bottom: 2rem;
+}
+
+/* Non-full-bleed inner wrapper: keeps text content at a comfortable reading
+   width even though the banner/answer-bar/utility-row above it span edge
+   to edge. */
+.study-content {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.study-topbar {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0.75rem 1.5rem 0;
+  color: var(--text);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.study-banner {
+  background: var(--item-accent);
+  color: #fff;
+}
+
+/* Padding lives on the display area only, not on .study-banner itself --
+   otherwise the parent's padding would also apply below .study-banner-label
+   (its last child), leaving a stray strip of banner color trailing after
+   the dark label bar instead of the label bar sitting flush at the bottom. */
+.study-banner-display {
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+}
+
+.study-banner-display h1 {
+  color: #fff;
+  margin: 0;
+  word-break: break-word;
+}
+
+.study-banner-label {
+  background: #26262e;
+  color: #f0f0f3;
+  padding: 0.6rem 1rem;
+  text-align: center;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+}
+
+/* Answer bar: plain while typing, colored once resolved. Same full-bleed
+   strip either way so the input visually continues the banner/label stack
+   above it. */
+.answer-bar-wrap {
+  display: block;
+}
+
+.answer-bar {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  padding: 0;
+}
+
+.answer-bar-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  font-size: 1.2rem;
+  padding: 1rem 1.5rem;
+  color: var(--text-h);
+  text-align: center;
+}
+
+.answer-bar-chevron {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.answer-bar-chevron:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.answer-bar-correct,
+.answer-bar-incorrect {
+  color: #fff;
+}
+
+.answer-bar-correct {
+  background: #2e7d32;
+}
+
+.answer-bar-incorrect {
+  background: #c0392b;
+}
+
+.answer-bar-correct .answer-bar-chevron,
+.answer-bar-incorrect .answer-bar-chevron {
+  color: #fff;
+}
+
+.answer-bar-text {
+  flex: 1;
+  padding: 1rem 1.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.utility-row {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--code-bg);
+}
+
+.utility-button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem;
+  border: none;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  text-decoration: none;
+  border-right: 1px solid var(--border);
+}
+
+.utility-button:last-child {
+  border-right: none;
+}
+
+.utility-button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.utility-button.active {
+  color: var(--text-h);
+  background: rgba(0, 0, 0, 0.05);
+}

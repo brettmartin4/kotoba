@@ -1,0 +1,50 @@
+/* The word/phrase color scheme (spec 15.2: word = pink, phrase = blue). */
+
+/* Item-type accents: a light background tint plus a stronger accent color for
+   borders/headings, not a full saturated fill, so body text stays readable
+   (spec 15.2, and the "item info panel readability" polish ask). Applied to
+   whichever card/wrapper is showing a specific word or phrase. */
+.item-word {
+  --item-bg: #fdeef3;
+  --item-accent: #d63384;
+  --item-accent-text: #8a1f52;
+}
+
+.item-phrase {
+  --item-bg: #eaf2fd;
+  --item-accent: #2f6fd6;
+  --item-accent-text: #1c4a8f;
+}
+
+.item-word,
+.item-phrase {
+  background: var(--item-bg);
+  border-color: var(--item-accent);
+}
+
+.item-word h1,
+.item-phrase h1 {
+  color: var(--item-accent-text);
+}
+
+/* Subtle accent for table-row/list contexts where a full background tint
+   would be too heavy (e.g. Browse's results table). */
+.item-type-dot {
+  display: inline-block;
+  width: 0.6em;
+  height: 0.6em;
+  border-radius: 50%;
+  margin-right: 0.4em;
+}
+
+.item-word .item-type-dot {
+  background: var(--item-accent, #d63384);
+}
+
+.item-phrase .item-type-dot {
+  background: var(--item-accent, #2f6fd6);
+}
+
+/* Borders on <tr> aren't reliably rendered under border-collapse, so table
+   rows get a background tint (from the shared rule above) plus the dot;
+   no border-left attempt here. */

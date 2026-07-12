@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { fetchDashboard } from '../api/dashboard'
-import SourceLevelCard from '../components/SourceLevelCard'
-import SrsDistribution from '../components/SrsDistribution'
+import DashboardActionCard from '../components/DashboardActionCard'
+import ItemSpreadPanel from '../components/ItemSpreadPanel'
+import LevelProgressPanel from '../components/LevelProgressPanel'
+import ReviewForecast from '../components/ReviewForecast'
 import './Dashboard.css'
 
 function Dashboard({ onStartLessons, onStartReviews, reviewStartError, startingReview }) {
@@ -17,7 +19,7 @@ function Dashboard({ onStartLessons, onStartReviews, reviewStartError, startingR
   if (error) {
     return (
       <main className="dashboard">
-        <h1>KotobaForge</h1>
+        <img src="/logo.png" alt="KotobaForge" className="dashboard-logo" />
         <p className="dashboard-error">Could not load dashboard: {error}</p>
       </main>
     )
@@ -26,7 +28,7 @@ function Dashboard({ onStartLessons, onStartReviews, reviewStartError, startingR
   if (!data) {
     return (
       <main className="dashboard">
-        <h1>KotobaForge</h1>
+        <img src="/logo.png" alt="KotobaForge" className="dashboard-logo" />
         <p>Loading...</p>
       </main>
     )
@@ -34,46 +36,47 @@ function Dashboard({ onStartLessons, onStartReviews, reviewStartError, startingR
 
   return (
     <main className="dashboard">
-      <h1>KotobaForge</h1>
+      <img src="/logo.png" alt="KotobaForge" className="dashboard-logo" />
 
       <div className="dashboard-actions">
-        <button
-          className="action-button"
-          type="button"
+        <DashboardActionCard
+          variant="lessons"
+          glyph="授業"
+          title="Lessons"
+          count={data.lessons_available}
+          buttonLabel="Start Lessons"
           onClick={onStartLessons}
           disabled={data.lessons_available === 0}
-        >
-          Lessons
-          <span className="action-count">{data.lessons_available}</span>
-        </button>
-        <button
-          className="action-button"
-          type="button"
+        />
+        <DashboardActionCard
+          variant="reviews"
+          glyph="練習"
+          title="Reviews"
+          count={data.reviews_available}
+          buttonLabel={startingReview ? 'Starting...' : 'Start Reviews'}
           onClick={onStartReviews}
           disabled={data.reviews_available === 0 || startingReview}
-        >
-          {startingReview ? 'Starting...' : 'Reviews'}
-          <span className="action-count">{data.reviews_available}</span>
-        </button>
+        />
+        <ReviewForecast forecast={data.review_forecast} />
       </div>
       {reviewStartError && <p className="dashboard-error">{reviewStartError}</p>}
 
       <section>
-        <h2>Sources</h2>
+        <h2>Level Progress</h2>
         {data.sources.length === 0 ? (
           <p>No word banks imported yet.</p>
         ) : (
-          <div className="source-cards">
+          <div className="level-progress-stack">
             {data.sources.map((source) => (
-              <SourceLevelCard key={source.id} source={source} />
+              <LevelProgressPanel key={source.id} source={source} />
             ))}
           </div>
         )}
       </section>
 
       <section>
-        <h2>SRS Distribution</h2>
-        <SrsDistribution distribution={data.srs_distribution} />
+        <h2>Item Spread</h2>
+        <ItemSpreadPanel distributionByType={data.srs_distribution_by_type} />
       </section>
 
       <section className="dashboard-footer">

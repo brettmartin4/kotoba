@@ -96,13 +96,16 @@ function Browse() {
           </thead>
           <tbody>
             {items.map((item) => (
-              <tr key={item.item_id}>
+              <tr key={item.item_id} className={`item-${item.item_type}`}>
                 <td>
                   <Link to={`/items/${item.item_id}`}>{item.japanese}</Link>
                 </td>
                 <td>{item.kana}</td>
                 <td>{item.meanings.join('; ')}</td>
-                <td>{item.item_type}</td>
+                <td>
+                  <span className="item-type-dot" />
+                  {item.item_type}
+                </td>
                 <td>{item.srs_stage_label}</td>
                 <td>{item.sources.map((s) => `${s.display_name}${s.is_active ? '' : ' (inactive)'}`).join(', ')}</td>
               </tr>

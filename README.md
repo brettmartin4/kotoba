@@ -4,6 +4,35 @@
 
 The idea is simple: add words and phrases from your own life, organize them by source, and review them through a strict spaced repetition system that does not let you casually mark answers correct. Whether the word came from work, a manga, a visual novel, an anime, a book, or a conversation, KotobaForge is designed to turn those personally encountered words into a focused study queue.
 
+## Quick Start (Windows)
+
+Prerequisites: [Python 3.12+](https://www.python.org/downloads/) and [Node.js LTS](https://nodejs.org/) on your `PATH`.
+
+1. Double-click `start_kotobaforge.bat` (or run it from a terminal). The first run sets up a Python virtual environment and installs frontend dependencies, so it takes a minute; every run after that is fast.
+2. A "KotobaForge Server" console window opens, and your browser opens to `http://127.0.0.1:8000` once the server is ready.
+3. Drop your `.xlsx` word-bank files into the `wordbanks/` folder at the project root, then click **Refresh Word Banks** on the Admin page to import them.
+4. To stop KotobaForge, close the "KotobaForge Server" window.
+
+Your data lives in `backend/data/kotobaforge.db` and is never touched by the word-bank files themselves — re-running the importer never resets your progress.
+
+## Word-Bank File Format
+
+Each `.xlsx` file in `wordbanks/` is one source (its filename becomes the source key, and the display name can be edited in the app). Every file needs a sheet named `items` with these columns:
+
+| Column | Required | Notes |
+|---|---|---|
+| `item_type` | Yes | `word` or `phrase` |
+| `japanese` | Yes | Main display form (kanji or kana) |
+| `kana` | Yes | Kana reading; same as `japanese` for kana-only items |
+| `romaji` | Yes | Lesson display only, never accepted as a review answer |
+| `meanings` | Yes | Semicolon-separated English meanings, e.g. `confirm; verify; check` |
+| `part_of_speech` | Yes | noun, verb, adjective, expression, etc. |
+| `example_japanese` / `example_kana` / `example_english` | No | Semicolon-separated, paired by position across all three columns |
+| `similar_items` | No | Semicolon-separated related words/phrases, shown as plain text |
+| `source_note` | No | Free-text note about this item's use in this source |
+
+Progress, SRS state, notes, mnemonics, and synonyms are stored only in the SQLite database, never written back to the Excel files, so you're always free to keep editing your word banks.
+
 ## Why I Built This
 
 I (or rather Claude) built KotobaForge because I wanted a better way to learn Japanese vocabulary from the things I actually encounter.
@@ -143,7 +172,7 @@ KotobaForge aims to be:
 
 ## Development Setup
 
-This repo currently has the Phase 0 scaffold: a FastAPI backend, a React + Vite frontend, and a wiring health check between them. The import/lesson/review features described above are not implemented yet.
+Use this instead of the packaged launcher when you're changing code — it runs the backend and frontend as separate dev servers with hot reload.
 
 ### Backend
 
@@ -172,7 +201,14 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`. The dev server proxies `/api` requests to the backend on port 8000, so run both at the same time to see the health check succeed on the page.
+Open `http://localhost:5173`. The dev server proxies `/api` requests to the backend on port 8000, so run both at the same time.
+
+Build for production (this is also what `start_kotobaforge.bat` runs automatically):
+
+```bash
+cd frontend
+npm run build
+```
 
 ## Current Vision
 

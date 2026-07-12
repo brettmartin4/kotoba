@@ -10,7 +10,7 @@ from app.models import item_forms, item_meanings, review_attempts, review_sessio
 from app.models import source_items, sources, study_progress
 from app.services.answer_checking import (
     check_japanese_answer,
-    check_meaning_answer,
+    grade_meaning_answer,
     normalize_meaning_answer,
 )
 from app.services.item_detail import get_item_detail
@@ -200,15 +200,31 @@ def record_lesson_answer(
 
         accepted_meanings = _accepted_meanings(conn, item_id)
         if prompt_type == "meaning":
-            is_correct = check_meaning_answer(submitted_answer, accepted_meanings)
+            grade = grade_meaning_answer(submitted_answer, accepted_meanings)
+            is_correct = grade == "correct"
+            is_typo_warning = grade == "typo_warning"
             correct_answers = accepted_meanings
             normalized_answer = normalize_meaning_answer(submitted_answer)
         else:
             display_forms = _accepted_display_forms(conn, item_id)
             kana_forms = _accepted_kana_forms(conn, item_id)
             is_correct = check_japanese_answer(submitted_answer, display_forms, kana_forms)
+            is_typo_warning = False
             correct_answers = display_forms + kana_forms
             normalized_answer = normalize_japanese(submitted_answer)
+
+        # A typo warning is not a resolved attempt: no review_attempts row, no
+        # effect on item_passed/activation, same as the review flow's handling
+        # (review_service.record_review_answer) -- the prompt stays outstanding
+        # and the user just retries it.
+        if is_typo_warning:
+            return {
+                "status": "typo_warning",
+                "is_correct": None,
+                "correct_answers": [],
+                "item_passed": False,
+                "item_activated": False,
+            }
 
         now_naive_utc = _now_aware().replace(tzinfo=None)
         conn.execute(
@@ -231,6 +247,7 @@ def record_lesson_answer(
             item_activated = _activate_if_not_already(conn, item_id, now_naive_utc)
 
     return {
+        "status": "correct" if is_correct else "incorrect",
         "is_correct": is_correct,
         "correct_answers": correct_answers,
         "item_passed": item_passed,

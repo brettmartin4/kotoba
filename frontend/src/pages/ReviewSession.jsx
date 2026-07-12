@@ -1,8 +1,13 @@
 import { useState } from 'react'
 import { completeReview, submitReviewAnswer } from '../api/reviews'
+import AnswerBar from '../components/AnswerBar'
 import ItemInfoPanel from '../components/ItemInfoPanel'
+import StudyBanner from '../components/StudyBanner'
+import UtilityRow from '../components/UtilityRow'
+import { promptLabel } from '../utils/studyLabels'
 import './Lessons.css'
 import './Reviews.css'
+import './StudyScreen.css'
 
 function buildQueue(items) {
   const queue = []
@@ -34,9 +39,12 @@ function ReviewSession({ session, onComplete }) {
   const [feedback, setFeedback] = useState(null) // only set for resolved (correct/incorrect) outcomes
   const [typoMessage, setTypoMessage] = useState(false)
   const [shake, setShake] = useState(false)
+  const [panelOpen, setPanelOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [finishing, setFinishing] = useState(false)
   const [error, setError] = useState(null)
+  const [correctCount, setCorrectCount] = useState(0)
+  const [resolvedCount, setResolvedCount] = useState(0)
 
   // While showing feedback, keep referring to the prompt just answered rather
   // than the new queue head, so the feedback/info panel match what's on screen.
@@ -59,9 +67,12 @@ function ReviewSession({ session, onComplete }) {
         setTimeout(() => setShake(false), 400)
         setAnswer('')
       } else {
-        setFeedback({ prompt, status: result.status, correctAnswers: result.correct_answers })
+        setFeedback({ prompt, status: result.status, correctAnswers: result.correct_answers, submittedAnswer: answer })
         setQueue((prevQueue) => prevQueue.slice(1))
         setAnswer('')
+        setPanelOpen(false)
+        setResolvedCount((c) => c + 1)
+        if (result.status === 'correct') setCorrectCount((c) => c + 1)
       }
     } catch (err) {
       setError(err.message)
@@ -73,6 +84,7 @@ function ReviewSession({ session, onComplete }) {
   async function handleContinue() {
     const wasLastPrompt = queue.length === 0
     setFeedback(null)
+    setPanelOpen(false)
     if (wasLastPrompt) {
       setFinishing(true)
       try {
@@ -93,55 +105,53 @@ function ReviewSession({ session, onComplete }) {
     )
   }
 
-  const promptLabel = current.promptType === 'meaning' ? 'What does this mean?' : 'How do you write this in Japanese?'
   const promptText = current.promptType === 'meaning' ? current.item.japanese : current.item.meanings.join(' / ')
   const remaining = queue.length + (feedback ? 1 : 0)
+  const accuracy = resolvedCount > 0 ? Math.round((correctCount / resolvedCount) * 100) : null
 
   return (
-    <main className="lesson-screen">
-      <p className="lesson-progress">
-        {remaining} prompt{remaining === 1 ? '' : 's'} remaining
+    <main className="study-screen">
+      <p className="study-topbar">
+        {accuracy === null ? 'No answers yet' : `${accuracy}% correct`} &middot; {remaining} remaining
       </p>
 
-      {error && <p className="dashboard-error">{error}</p>}
+      {error && (
+        <p className="study-content dashboard-error">
+          {error}
+        </p>
+      )}
 
-      <div className={`quiz-card ${shake ? 'shake' : ''}`}>
-        <p className="quiz-label">{promptLabel}</p>
-        <h1>{promptText}</h1>
+      <StudyBanner
+        itemType={current.item.item_type}
+        display={promptText}
+        label={promptLabel(current.item.item_type, current.promptType)}
+      />
 
-        {!feedback ? (
-          <>
-            <form onSubmit={handleSubmit}>
-              <input
-                type="text"
-                value={answer}
-                onChange={(e) => {
-                  setAnswer(e.target.value)
-                  setTypoMessage(false)
-                }}
-                autoFocus
-                disabled={submitting}
-              />
-              <button type="submit" disabled={submitting || !answer.trim()}>
-                Submit
-              </button>
-            </form>
-            {typoMessage && <p className="typo-warning">Close, but not quite. Try again.</p>}
-          </>
-        ) : (
-          <div
-            className={`quiz-feedback ${feedback.status === 'correct' ? 'quiz-feedback-correct' : 'quiz-feedback-incorrect'}`}
-          >
-            <p>{feedback.status === 'correct' ? 'Correct!' : 'Incorrect.'}</p>
-            {feedback.status === 'incorrect' && <p>Accepted: {feedback.correctAnswers.join(', ')}</p>}
-            <button type="button" className="primary-button" onClick={handleContinue} disabled={finishing} autoFocus>
-              {finishing ? 'Finishing...' : 'Continue'}
-            </button>
-          </div>
-        )}
-      </div>
+      <AnswerBar
+        value={answer}
+        onChange={(e) => {
+          setAnswer(e.target.value)
+          setTypoMessage(false)
+        }}
+        onSubmit={handleSubmit}
+        submitting={submitting}
+        shake={shake}
+        typoMessage={typoMessage}
+        result={feedback ? feedback.status : null}
+        submittedAnswer={feedback ? feedback.submittedAnswer : ''}
+        correctAnswers={feedback ? feedback.correctAnswers : []}
+        onContinue={handleContinue}
+        continuing={finishing}
+      />
 
-      {feedback && <ItemInfoPanel item={feedback.prompt.item} />}
+      <UtilityRow
+        itemId={current.item.item_id}
+        revealEnabled={!!feedback}
+        revealed={panelOpen}
+        onToggleReveal={() => setPanelOpen((v) => !v)}
+      />
+
+      <div className="study-content">{feedback && panelOpen && <ItemInfoPanel item={feedback.prompt.item} />}</div>
     </main>
   )
 }

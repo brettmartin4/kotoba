@@ -3,7 +3,7 @@ from typing import Dict, List, Tuple
 from sqlalchemy import case, func, select
 from sqlalchemy.engine import Connection
 
-from app.models import source_items, sources, study_progress
+from app.models import source_items, sources, study_progress, vocab_items
 
 GURU_STAGE_THRESHOLD = 5  # srs_stage >= 5 is Guru 1 or higher
 
@@ -34,6 +34,47 @@ def _active_stats_by_level(conn: Connection, source_id: int) -> Dict[int, Tuple[
     return {level: (active_count, guru_count or 0) for level, active_count, guru_count in rows}
 
 
+def _active_stats_by_level_and_type(conn: Connection, source_id: int) -> Dict[int, Dict[str, Tuple[int, int]]]:
+    """Same shape as _active_stats_by_level, but split by item_type -- purely
+    additive, for display purposes only (the level-unlock threshold below
+    stays based on the blended counts; the 90% rule was never meant to be
+    per-type)."""
+    guru_expr = case((study_progress.c.srs_stage >= GURU_STAGE_THRESHOLD, 1), else_=0)
+    rows = conn.execute(
+        select(
+            source_items.c.source_level,
+            vocab_items.c.item_type,
+            func.count().label("active_count"),
+            func.sum(guru_expr).label("guru_count"),
+        )
+        .select_from(
+            source_items.join(study_progress, source_items.c.item_id == study_progress.c.item_id).join(
+                vocab_items, source_items.c.item_id == vocab_items.c.id
+            )
+        )
+        .where(source_items.c.source_id == source_id, source_items.c.is_active.is_(True))
+        .group_by(source_items.c.source_level, vocab_items.c.item_type)
+    ).all()
+
+    result: Dict[int, Dict[str, Tuple[int, int]]] = {}
+    for level, item_type, active_count, guru_count in rows:
+        result.setdefault(level, {})[item_type] = (active_count, guru_count or 0)
+    return result
+
+
+def _by_type_summary(stats: Dict[str, Tuple[int, int]]) -> Dict[str, dict]:
+    summary = {}
+    for item_type in ("word", "phrase"):
+        active_count, guru_count = stats.get(item_type, (0, 0))
+        percent_guru = round((guru_count / active_count * 100), 1) if active_count > 0 else 0.0
+        summary[item_type] = {
+            "active_item_count": active_count,
+            "guru_or_higher_count": guru_count,
+            "percent_guru": percent_guru,
+        }
+    return summary
+
+
 def get_source_levels(conn: Connection, source_id: int) -> Tuple[List[dict], int]:
     """Per-level progress plus the highest currently-unlocked level for a source.
 
@@ -48,6 +89,7 @@ def get_source_levels(conn: Connection, source_id: int) -> Tuple[List[dict], int
     """
     max_level = _max_level(conn, source_id)
     stats_by_level = _active_stats_by_level(conn, source_id)
+    stats_by_level_and_type = _active_stats_by_level_and_type(conn, source_id)
 
     levels: List[dict] = []
     unlocked_carry = True
@@ -65,6 +107,7 @@ def get_source_levels(conn: Connection, source_id: int) -> Tuple[List[dict], int
                 "guru_or_higher_count": guru_count,
                 "percent_guru": percent_guru,
                 "is_unlocked": is_unlocked,
+                "by_type": _by_type_summary(stats_by_level_and_type.get(level, {})),
             }
         )
 

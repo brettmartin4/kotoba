@@ -27,20 +27,6 @@
   padding: 1rem;
 }
 
-.lesson-card,
-.quiz-card {
-  border: 1px solid var(--border);
-  border-radius: 0.75rem;
-  padding: 1.5rem;
-  margin: 1rem 0;
-  text-align: center;
-}
-
-.lesson-progress {
-  color: var(--text);
-  font-size: 0.9rem;
-}
-
 .lesson-kana {
   color: var(--text);
 }
@@ -57,41 +43,6 @@
 
 .lesson-notes {
   font-style: italic;
-}
-
-.quiz-label {
-  color: var(--text);
-  font-size: 0.9rem;
-}
-
-.quiz-card form {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: center;
-  margin-top: 1rem;
-}
-
-.quiz-card input[type='text'] {
-  font-size: 1.1rem;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: 0.4rem;
-  min-width: 220px;
-  font-family: inherit;
-}
-
-.quiz-feedback {
-  margin-top: 1rem;
-}
-
-.quiz-feedback-correct {
-  color: #2e7d32;
-  font-weight: 600;
-}
-
-.quiz-feedback-incorrect {
-  color: #c0392b;
-  font-weight: 600;
 }
 
 .primary-button {

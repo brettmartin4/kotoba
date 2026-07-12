@@ -4,16 +4,28 @@ from sqlalchemy import insert, update
 
 from app.models import review_attempts, review_sessions, source_items, sources, study_progress, vocab_items
 from app.services.dashboard_service import get_dashboard
+from app.services.time_utils import start_of_local_day_utc, today_local_date
 
 
 def _now_naive():
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
-def _make_item(conn, japanese, kana, srs_stage=0, next_review_at=None):
+def _forecast_boundaries():
+    """Mirrors _review_forecast's own boundary computation so tests can place
+    items precisely relative to real local-midnight boundaries. get_dashboard()
+    has no injectable clock, matching this file's existing real-clock,
+    relative-offset style (see the daily-streak tests below)."""
+    now = _now_naive()
+    midnight_today = start_of_local_day_utc(now.replace(tzinfo=timezone.utc))
+    boundaries = [midnight_today + timedelta(days=i) for i in range(1, 6)]
+    return now, boundaries
+
+
+def _make_item(conn, japanese, kana, srs_stage=0, next_review_at=None, item_type="word"):
     item_id = conn.execute(
         insert(vocab_items).values(
-            item_type="word",
+            item_type=item_type,
             japanese=japanese,
             kana=kana,
             romaji="r",
@@ -53,6 +65,128 @@ def test_srs_distribution_includes_stage_zero(engine):
     assert result["srs_distribution"]["0"] == 2
     assert result["srs_distribution"]["5"] == 1
     assert result["srs_distribution"]["9"] == 0
+
+
+def test_srs_distribution_by_type_splits_word_and_phrase(engine):
+    with engine.begin() as conn:
+        _make_item(conn, "a", "a", srs_stage=0, item_type="word")
+        _make_item(conn, "b", "b", srs_stage=0, item_type="word")
+        _make_item(conn, "c", "c", srs_stage=0, item_type="phrase")
+        _make_item(conn, "d", "d", srs_stage=5, item_type="phrase")
+
+    result = get_dashboard(engine)
+
+    assert result["srs_distribution_by_type"]["0"] == {"word": 2, "phrase": 1}
+    assert result["srs_distribution_by_type"]["5"] == {"word": 0, "phrase": 1}
+    assert result["srs_distribution_by_type"]["9"] == {"word": 0, "phrase": 0}
+    # The existing blended distribution is untouched by the new by-type field.
+    assert result["srs_distribution"]["0"] == 3
+    assert result["srs_distribution"]["5"] == 1
+
+
+# --- review forecast --------------------------------------------------------------
+
+
+def test_forecast_today_bucket_ends_at_local_midnight(engine):
+    now, boundaries = _forecast_boundaries()
+    with engine.begin() as conn:
+        _make_item(conn, "a", "a", srs_stage=1, next_review_at=boundaries[0] - timedelta(minutes=1))
+        _make_item(conn, "b", "b", srs_stage=1, next_review_at=boundaries[0] + timedelta(minutes=1))
+
+    result = get_dashboard(engine)
+    rows = result["review_forecast"]["rows"]
+
+    assert rows[0]["new_items"] == 1
+    assert rows[1]["new_items"] == 1
+
+
+def test_forecast_next_four_rows_are_subsequent_local_calendar_days(engine):
+    result = get_dashboard(engine)
+    rows = result["review_forecast"]["rows"]
+
+    assert len(rows) == 5
+    local_date = today_local_date()
+    expected_labels = [(local_date + timedelta(days=i)).strftime("%a") for i in range(5)]
+    assert [r["label"] for r in rows] == expected_labels
+
+
+def test_forecast_currently_due_items_count_toward_cumulative_not_new(engine):
+    now, boundaries = _forecast_boundaries()
+    with engine.begin() as conn:
+        _make_item(conn, "a", "a", srs_stage=1, next_review_at=now - timedelta(hours=1))  # already overdue
+
+    result = get_dashboard(engine)
+    rows = result["review_forecast"]["rows"]
+
+    assert rows[0]["new_items"] == 0  # not "new" today -- it was already due before "now"
+    assert rows[0]["cumulative_available"] == 1  # but still counted as available
+    assert rows[4]["cumulative_available"] == 1  # stays flat since nothing new becomes due later
+
+
+def test_forecast_future_items_land_in_correct_day_bucket(engine):
+    now, boundaries = _forecast_boundaries()
+    with engine.begin() as conn:
+        _make_item(conn, "a", "a", srs_stage=1, next_review_at=boundaries[0] - timedelta(minutes=30))
+        _make_item(conn, "b", "b", srs_stage=1, next_review_at=boundaries[1] - timedelta(minutes=30))
+        _make_item(conn, "c", "c", srs_stage=1, next_review_at=boundaries[2] - timedelta(minutes=30))
+        _make_item(conn, "d", "d", srs_stage=1, next_review_at=boundaries[3] - timedelta(minutes=30))
+        _make_item(conn, "e", "e", srs_stage=1, next_review_at=boundaries[4] - timedelta(minutes=30))
+
+    result = get_dashboard(engine)
+    rows = result["review_forecast"]["rows"]
+
+    assert [r["new_items"] for r in rows] == [1, 1, 1, 1, 1]
+
+
+def test_forecast_excludes_stage_zero_and_stage_nine(engine):
+    now, boundaries = _forecast_boundaries()
+    with engine.begin() as conn:
+        _make_item(conn, "a", "a", srs_stage=0, next_review_at=now + timedelta(hours=1))  # unstarted
+        _make_item(conn, "b", "b", srs_stage=9, next_review_at=now + timedelta(hours=1))  # burned
+        _make_item(conn, "c", "c", srs_stage=1, next_review_at=now + timedelta(hours=1))  # included
+
+    result = get_dashboard(engine)
+    rows = result["review_forecast"]["rows"]
+
+    assert rows[0]["new_items"] == 1
+    assert rows[0]["cumulative_available"] == 1
+
+
+def test_forecast_excludes_null_next_review_at(engine):
+    with engine.begin() as conn:
+        _make_item(conn, "a", "a", srs_stage=1, next_review_at=None)
+
+    result = get_dashboard(engine)
+    rows = result["review_forecast"]["rows"]
+
+    assert all(r["new_items"] == 0 for r in rows)
+    assert all(r["cumulative_available"] == 0 for r in rows)
+
+
+def test_forecast_cumulative_totals_increase_correctly_across_rows(engine):
+    now, boundaries = _forecast_boundaries()
+    with engine.begin() as conn:
+        _make_item(conn, "a", "a", srs_stage=1, next_review_at=now - timedelta(hours=1))  # backlog
+        _make_item(conn, "b", "b", srs_stage=1, next_review_at=boundaries[0] - timedelta(minutes=30))  # row 0
+        _make_item(conn, "c", "c", srs_stage=1, next_review_at=boundaries[2] - timedelta(minutes=30))  # row 2
+
+    result = get_dashboard(engine)
+    rows = result["review_forecast"]["rows"]
+
+    assert [r["new_items"] for r in rows] == [1, 0, 1, 0, 0]
+    assert [r["cumulative_available"] for r in rows] == [2, 2, 3, 3, 3]
+
+
+def test_forecast_header_matches_first_row(engine):
+    now, boundaries = _forecast_boundaries()
+    with engine.begin() as conn:
+        _make_item(conn, "a", "a", srs_stage=1, next_review_at=boundaries[0] - timedelta(minutes=30))
+
+    result = get_dashboard(engine)
+    forecast = result["review_forecast"]
+
+    assert forecast["header_label"] == "Next 24 Hours:"
+    assert forecast["header_new_items"] == forecast["rows"][0]["new_items"] == 1
 
 
 def test_new_items_last_7_days(engine):

@@ -7,6 +7,7 @@ import './Admin.css'
 
 function Admin() {
   const [sources, setSources] = useState([])
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [refreshing, setRefreshing] = useState(false)
   const [refreshSummary, setRefreshSummary] = useState(null)
@@ -19,6 +20,7 @@ function Admin() {
     fetchSources()
       .then(setSources)
       .catch((err) => setError(err.message))
+      .finally(() => setLoading(false))
     fetchPendingDuplicates()
       .then((rows) => setPendingDuplicateCount(rows.length))
       .catch(() => {})
@@ -98,31 +100,35 @@ function Admin() {
 
       <section>
         <h2>Sources</h2>
-        <ul className="admin-source-list">
-          {sources.map((source) => (
-            <li key={source.id}>
-              {editingId === source.id ? (
-                <>
-                  <input value={editValue} onChange={(e) => setEditValue(e.target.value)} />
-                  <button type="button" onClick={() => handleRename(source.id)}>
-                    Save
-                  </button>
-                  <button type="button" onClick={() => setEditingId(null)}>
-                    Cancel
-                  </button>
-                </>
-              ) : (
-                <>
-                  <strong>{source.display_name}</strong> ({source.source_key})
-                  <button type="button" className="link-button" onClick={() => startEditing(source)}>
-                    rename
-                  </button>
-                </>
-              )}
-            </li>
-          ))}
-          {sources.length === 0 && <li>No sources imported yet.</li>}
-        </ul>
+        {loading ? (
+          <p>Loading...</p>
+        ) : (
+          <ul className="admin-source-list">
+            {sources.map((source) => (
+              <li key={source.id}>
+                {editingId === source.id ? (
+                  <>
+                    <input value={editValue} onChange={(e) => setEditValue(e.target.value)} />
+                    <button type="button" onClick={() => handleRename(source.id)}>
+                      Save
+                    </button>
+                    <button type="button" onClick={() => setEditingId(null)}>
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <strong>{source.display_name}</strong> ({source.source_key})
+                    <button type="button" className="link-button" onClick={() => startEditing(source)}>
+                      rename
+                    </button>
+                  </>
+                )}
+              </li>
+            ))}
+            {sources.length === 0 && <li>No sources imported yet.</li>}
+          </ul>
+        )}
       </section>
     </main>
   )
