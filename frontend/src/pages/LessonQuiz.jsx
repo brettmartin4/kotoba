@@ -4,7 +4,7 @@ import AnswerBar from '../components/AnswerBar'
 import ItemInfoPanel from '../components/ItemInfoPanel'
 import StudyBanner from '../components/StudyBanner'
 import UtilityRow from '../components/UtilityRow'
-import { promptLabel } from '../utils/studyLabels'
+import { promptFurigana, promptLabel } from '../utils/studyLabels'
 import './Lessons.css'
 import './Reviews.css'
 import './StudyScreen.css'
@@ -113,6 +113,7 @@ function LessonQuiz({ session, onComplete }) {
         itemType={current.item.item_type}
         display={promptText}
         label={promptLabel(current.item.item_type, current.promptType)}
+        furigana={promptFurigana(current.item, current.promptType)}
       />
 
       <AnswerBar
@@ -130,6 +131,7 @@ function LessonQuiz({ session, onComplete }) {
         correctAnswers={feedback ? feedback.correctAnswers : []}
         onContinue={handleContinue}
         continuing={finishing}
+        convertToKana={current.promptType === 'japanese'}
       />
 
       <UtilityRow

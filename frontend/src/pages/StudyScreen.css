@@ -51,6 +51,12 @@
   word-break: break-word;
 }
 
+.study-banner-furigana {
+  margin: 0.4rem 0 0;
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
 .study-banner-label {
   background: #26262e;
   color: #f0f0f3;

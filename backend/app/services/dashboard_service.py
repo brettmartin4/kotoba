@@ -4,11 +4,11 @@ from typing import Dict, Optional
 from sqlalchemy import func, select, update
 from sqlalchemy.engine import Connection, Engine
 
-from app.core.config import settings
 from app.models import review_attempts, review_sessions, sources, study_progress, vocab_items
 from app.services.lesson_service import eligible_lesson_item_ids, lessons_learned_today
 from app.services.level_service import get_sources_overview
 from app.services.review_service import select_due_item_ids
+from app.services.settings_service import get_daily_lesson_cap
 from app.services.time_utils import start_of_local_day_utc, today_local_date, utc_to_local_date
 
 FORECAST_ROW_COUNT = 5
@@ -146,12 +146,13 @@ def get_dashboard(engine: Engine) -> dict:
         eligible_ids = eligible_lesson_item_ids(conn, overview)
 
         learned_today = lessons_learned_today(conn, now_aware_utc)
-        remaining_cap = max(0, settings.daily_lesson_cap - learned_today)
+        daily_lesson_cap = get_daily_lesson_cap(conn)
+        remaining_cap = max(0, daily_lesson_cap - learned_today)
         lessons_available = min(len(eligible_ids), remaining_cap)
 
         return {
             "lessons_available": lessons_available,
-            "daily_lesson_cap": settings.daily_lesson_cap,
+            "daily_lesson_cap": daily_lesson_cap,
             "lessons_learned_today": learned_today,
             "reviews_available": _reviews_available_count(conn, now_naive_utc),
             "review_forecast": _review_forecast(conn, now_naive_utc),

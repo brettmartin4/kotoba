@@ -13,6 +13,7 @@ from app.services.lesson_service import (
     record_lesson_answer,
     start_lesson_session,
 )
+from app.services.settings_service import set_daily_lesson_cap
 
 
 def _make_source(conn, key="work"):
@@ -66,6 +67,22 @@ def test_get_lessons_available_reflects_eligible_counts(engine):
     assert result["daily_lesson_cap"] == 10
     assert result["remaining_today"] == 10
     assert result["sources"][0]["lessons_available_in_source"] == 1
+
+
+def test_lessons_available_and_batch_size_respect_custom_daily_cap(engine):
+    with engine.begin() as conn:
+        source_id = _make_source(conn)
+        for i in range(5):
+            item_id = _make_item(conn, f"item{i}", f"kana{i}", ["meaning"])
+            _place(conn, source_id, item_id, position=i + 1)
+        set_daily_lesson_cap(conn, 2)
+
+    available = get_lessons_available(engine)
+    assert available["daily_lesson_cap"] == 2
+    assert available["remaining_today"] == 2
+
+    session = start_lesson_session(engine, source_id)
+    assert len(session["items"]) == 2  # 5 eligible items, batch clamped to the custom cap of 2
 
 
 def test_start_lesson_session_returns_batch_with_full_content(engine):

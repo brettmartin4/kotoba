@@ -12,6 +12,7 @@ from app.api.routes.imports import router as imports_router
 from app.api.routes.items import router as items_router
 from app.api.routes.lessons import router as lessons_router
 from app.api.routes.reviews import router as reviews_router
+from app.api.routes.settings import router as settings_router
 from app.api.routes.sources import router as sources_router
 from app.core.config import BACKEND_DIR
 from app.core.db import get_engine
@@ -39,6 +40,7 @@ app.include_router(dashboard_router)
 app.include_router(lessons_router)
 app.include_router(reviews_router)
 app.include_router(items_router)
+app.include_router(settings_router)
 
 
 @app.get("/api/health")

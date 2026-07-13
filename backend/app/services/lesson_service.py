@@ -15,6 +15,7 @@ from app.services.answer_checking import (
 )
 from app.services.item_detail import get_item_detail
 from app.services.level_service import get_source_levels, get_sources_overview
+from app.services.settings_service import get_daily_lesson_cap
 from app.services.text_normalization import normalize_japanese
 from app.services.time_utils import round_down_to_hour, start_of_local_day_utc
 
@@ -75,7 +76,8 @@ def get_lessons_available(engine: Engine) -> dict:
         now = _now_aware()
         overview = get_sources_overview(conn)
         learned_today = lessons_learned_today(conn, now)
-        remaining_today = max(0, settings.daily_lesson_cap - learned_today)
+        daily_lesson_cap = get_daily_lesson_cap(conn)
+        remaining_today = max(0, daily_lesson_cap - learned_today)
 
         sources_payload = [
             {
@@ -89,7 +91,7 @@ def get_lessons_available(engine: Engine) -> dict:
         ]
 
         return {
-            "daily_lesson_cap": settings.daily_lesson_cap,
+            "daily_lesson_cap": daily_lesson_cap,
             "lessons_learned_today": learned_today,
             "remaining_today": remaining_today,
             "sources": sources_payload,
@@ -115,7 +117,7 @@ def _select_lesson_batch(conn: Connection, source_id: int, now_aware_utc: dateti
     random.shuffle(eligible_ids)
 
     learned_today = lessons_learned_today(conn, now_aware_utc)
-    remaining_cap = max(0, settings.daily_lesson_cap - learned_today)
+    remaining_cap = max(0, get_daily_lesson_cap(conn) - learned_today)
     batch_size = min(len(eligible_ids), settings.lesson_batch_size, remaining_cap)
     return eligible_ids[:batch_size]
 

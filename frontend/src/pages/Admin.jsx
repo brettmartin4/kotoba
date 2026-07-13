@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchPendingChanges, fetchPendingDuplicates } from '../api/importActions'
 import { triggerImportRefresh } from '../api/imports'
+import { fetchSettings, updateDailyLessonCap } from '../api/settings'
 import { fetchSources, renameSource } from '../api/sources'
 import './Admin.css'
 
@@ -15,6 +16,9 @@ function Admin() {
   const [editValue, setEditValue] = useState('')
   const [pendingDuplicateCount, setPendingDuplicateCount] = useState(null)
   const [pendingChangeCount, setPendingChangeCount] = useState(null)
+  const [capInput, setCapInput] = useState('')
+  const [savingCap, setSavingCap] = useState(false)
+  const [capSaved, setCapSaved] = useState(false)
 
   function load() {
     fetchSources()
@@ -26,6 +30,9 @@ function Admin() {
       .catch(() => {})
     fetchPendingChanges()
       .then((rows) => setPendingChangeCount(rows.length))
+      .catch(() => {})
+    fetchSettings()
+      .then((s) => setCapInput(String(s.daily_lesson_cap)))
       .catch(() => {})
   }
 
@@ -64,6 +71,27 @@ function Admin() {
     }
   }
 
+  async function handleSaveCap(e) {
+    e.preventDefault()
+    const value = parseInt(capInput, 10)
+    if (!Number.isInteger(value) || value < 1) {
+      setError('Daily lesson cap must be a whole number of at least 1.')
+      return
+    }
+    setSavingCap(true)
+    setCapSaved(false)
+    setError(null)
+    try {
+      const result = await updateDailyLessonCap(value)
+      setCapInput(String(result.daily_lesson_cap))
+      setCapSaved(true)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSavingCap(false)
+    }
+  }
+
   return (
     <main className="admin-screen">
       <h1>Admin</h1>
@@ -94,6 +122,30 @@ function Admin() {
           <Link to="/admin/changes">Changed item approval queue</Link>
           {pendingChangeCount !== null && ` (${pendingChangeCount})`}
         </p>
+      </section>
+
+      <section>
+        <h2>Settings</h2>
+        <form className="settings-form" onSubmit={handleSaveCap}>
+          <label htmlFor="daily-lesson-cap">Daily lesson cap</label>
+          <input
+            id="daily-lesson-cap"
+            type="number"
+            min="1"
+            step="1"
+            value={capInput}
+            onChange={(e) => {
+              setCapInput(e.target.value)
+              setCapSaved(false)
+            }}
+            disabled={savingCap}
+          />
+          <button type="submit" className="primary-button" disabled={savingCap || capInput === ''}>
+            {savingCap ? 'Saving...' : 'Save'}
+          </button>
+          {capSaved && <span className="saved-indicator">Saved</span>}
+        </form>
+        <p className="settings-hint">Maximum new items you can start learning per day, resets at local midnight.</p>
       </section>
 
       {error && <p className="dashboard-error">{error}</p>}

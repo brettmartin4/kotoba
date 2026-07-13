@@ -4,6 +4,7 @@ from sqlalchemy import insert, update
 
 from app.models import review_attempts, review_sessions, source_items, sources, study_progress, vocab_items
 from app.services.dashboard_service import get_dashboard
+from app.services.settings_service import set_daily_lesson_cap
 from app.services.time_utils import start_of_local_day_utc, today_local_date
 
 
@@ -228,6 +229,52 @@ def test_lessons_learned_today_clamps_lessons_available(engine):
 
     assert result["lessons_learned_today"] == 8
     assert result["lessons_available"] == 2  # remaining cap 10-8=2, clamps the 3 eligible items down to 2
+
+
+def test_daily_lesson_cap_resets_at_local_midnight_not_a_rolling_window(engine):
+    now = _now_naive()
+    midnight_today = start_of_local_day_utc(now.replace(tzinfo=timezone.utc))
+
+    with engine.begin() as conn:
+        # Learned yesterday, just before today's local midnight -- must NOT
+        # count toward today's cap, even though it's well within the last 24h.
+        yesterday_item = _make_item(conn, "a", "a")
+        conn.execute(
+            update(study_progress)
+            .where(study_progress.c.item_id == yesterday_item)
+            .values(learned_at=midnight_today - timedelta(minutes=1))
+        )
+        # Learned today, just after local midnight -- must count.
+        today_item = _make_item(conn, "b", "b")
+        conn.execute(
+            update(study_progress)
+            .where(study_progress.c.item_id == today_item)
+            .values(learned_at=midnight_today + timedelta(minutes=1))
+        )
+
+    result = get_dashboard(engine)
+
+    assert result["lessons_learned_today"] == 1
+
+
+def test_dashboard_respects_custom_daily_lesson_cap(engine):
+    with engine.begin() as conn:
+        source_id = conn.execute(
+            insert(sources).values(source_key="work", display_name="Work", file_path="work.xlsx")
+        ).inserted_primary_key[0]
+        for i in range(5):
+            item_id = _make_item(conn, f"item{i}", f"kana{i}", srs_stage=0)
+            conn.execute(
+                insert(source_items).values(
+                    source_id=source_id, item_id=item_id, source_level=1, level_position=i + 1, is_active=True
+                )
+            )
+        set_daily_lesson_cap(conn, 2)
+
+    result = get_dashboard(engine)
+
+    assert result["daily_lesson_cap"] == 2
+    assert result["lessons_available"] == 2  # 5 eligible items, clamped to the custom cap of 2
 
 
 def test_daily_streak_consecutive_days_with_grace_for_today(engine):
