@@ -7,6 +7,8 @@
 
 The idea is simple: add words and phrases from your own life, organize them by source, and review them through a strict spaced repetition system that does not let you casually mark answers correct. Whether the word came from work, a manga, a visual novel, an anime, a book, or a conversation, KotobaForge is designed to turn those personally encountered words into a focused study queue.
 
+I began working on this project after talking with a friend about the feasibility of creating functional apps using only vibe-coding (thanks, Hunter!). He referred me to [this podcast](https://www.news.aakashg.com/p/claude-code-dev-team) that sort of outlines how one would even do something like this. While this was my first attempt at vibe-coding anything, I still have no way of telling how this stacks up against professionally-written, production-grade code (despite working in a field that involves software development), but it seems better than anything I've personally written in a non-vibe coding environment at this scale (i.e., [Simulator 2](https://dx.doi.org/10.2139/ssrn.7022098)). How frightening.
+
 ## Quick Start (Windows)
 
 Prerequisites: [Python 3.12+](https://www.python.org/downloads/) and [Node.js LTS](https://nodejs.org/) on your `PATH`.
